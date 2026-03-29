@@ -72,25 +72,6 @@ git push origin v1.0.1
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
 
-## Apple Developer Signing and Notarization
-
-Build config is set up for Developer ID signing and notarization.
-
-Set these environment variables before running npm run build:mac:
-
-```bash
-export CSC_NAME="Developer ID Application: Your Name (TEAMID)"
-export APPLE_ID="your-apple-id@example.com"
-export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-export APPLE_TEAM_ID="YOURTEAMID"
-```
-
-Notes:
-
-- CSC_NAME must match your installed signing identity exactly
-- If APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID are not set, notarization is skipped
-- Entitlements are defined in assets/entitlements.mac.plist
-- GitHub Actions can use the same values through repository secrets
 
 ## DeckLink Notes
 
