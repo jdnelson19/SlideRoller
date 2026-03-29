@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide Roller</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="menu-bar">
+      <h1>Slide Roller</h1>
+      <div class="menu-actions">
+        <button class="menu-btn" id="output-settings-btn">Output Settings</button>
+      </div>
+    </div>
+    <!-- Players Container -->
+    <div class="players-container">
+      <div class="player-card" data-player-id="1">
+        <div class="player-header">
+          <h2 class="player-name" title="Double-click to edit">Player 1</h2>
+          <div class="player-status">
+            <span class="status-indicator stopped"></span>
+            <span class="status-text">Stopped</span>
+          </div>
+        </div>
+        
+        <div class="player-preview">
+          <img class="preview-image preview-image-1" src="" alt="No image">
+          <img class="preview-image preview-image-2" src="" alt="No image">
+          <div class="preview-placeholder">No folder selected</div>
+        </div>
+        <button class="play-toggle-btn is-stopped" disabled>Start</button>
+
+        <div class="player-tabs" role="tablist" aria-label="Player 1 sections">
+          <button class="tab-btn active" data-tab="transition" role="tab" aria-selected="true">Transition</button>
+          <button class="tab-btn" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+          <button class="tab-btn" data-tab="output" role="tab" aria-selected="false">Output</button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="transition" role="tabpanel">
+            <div class="transition-toggle" aria-label="Transition type">
+              <button class="transition-toggle-btn active" data-transition="cut">Cut</button>
+              <button class="transition-toggle-btn" data-transition="crossfade">Fade</button>
+            </div>
+            <select class="transition-type" aria-hidden="true" tabindex="-1">
+              <option value="cut">Cut</option>
+              <option value="crossfade">Crossfade</option>
+            </select>
+
+            <div class="duration-group">
+              <label>Fade:</label>
+              <input type="range" class="duration-slider" min="0.5" max="5" step="0.5" value="1">
+              <span class="duration-value">1.0s</span>
+            </div>
+
+            <div class="timing-group">
+              <label>Display Time:</label>
+              <input type="range" class="timing-slider" min="3" max="20" step="1" value="5">
+              <span class="timing-value">5s</span>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="schedule" role="tabpanel">
+            <div class="schedule-grid" aria-label="Schedules">
+              <button class="schedule-btn" data-player-id="1" data-schedule-slot="1" title="Schedule 1">—</button>
+              <button class="schedule-btn" data-player-id="1" data-schedule-slot="2" title="Schedule 2">—</button>
+              <button class="schedule-btn" data-player-id="1" data-schedule-slot="3" title="Schedule 3">—</button>
+            </div>
+            <label class="auto-start-label" title="Auto-start on app launch">
+              <input type="checkbox" class="auto-start-checkbox">
+              Auto-start
+            </label>
+          </div>
+
+          <div class="tab-panel" data-panel="output" role="tabpanel">
+            <div class="folder-group">
+              <button class="folder-btn">Select Folder</button>
+              <div class="folder-path">No folder selected</div>
+            </div>
+
+            <div class="scale-group">
+              <label>
+                <input type="checkbox" class="scale-fill-checkbox">
+                Scale to Fill
+              </label>
+              <button class="color-picker-btn" title="Background Color">
+                <span class="color-preview" style="background: #000000;"></span>
+              </button>
+            </div>
+
+            <div class="output-group">
+              <label>Output:</label>
+              <select class="output-select">
+                <option value="">None</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="player-card" data-player-id="2">
+        <div class="player-header">
+          <h2 class="player-name" title="Double-click to edit">Player 2</h2>
+          <div class="player-status">
+            <span class="status-indicator stopped"></span>
+            <span class="status-text">Stopped</span>
+          </div>
+        </div>
+        
+        <div class="player-preview">
+          <img class="preview-image preview-image-1" src="" alt="No image">
+          <img class="preview-image preview-image-2" src="" alt="No image">
+          <div class="preview-placeholder">No folder selected</div>
+        </div>
+        <button class="play-toggle-btn is-stopped" disabled>Start</button>
+
+        <div class="player-tabs" role="tablist" aria-label="Player 2 sections">
+          <button class="tab-btn active" data-tab="transition" role="tab" aria-selected="true">Transition</button>
+          <button class="tab-btn" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+          <button class="tab-btn" data-tab="output" role="tab" aria-selected="false">Output</button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="transition" role="tabpanel">
+            <div class="transition-toggle" aria-label="Transition type">
+              <button class="transition-toggle-btn active" data-transition="cut">Cut</button>
+              <button class="transition-toggle-btn" data-transition="crossfade">Fade</button>
+            </div>
+            <select class="transition-type" aria-hidden="true" tabindex="-1">
+              <option value="cut">Cut</option>
+              <option value="crossfade">Crossfade</option>
+            </select>
+
+            <div class="duration-group">
+              <label>Fade:</label>
+              <input type="range" class="duration-slider" min="0.5" max="5" step="0.5" value="1">
+              <span class="duration-value">1.0s</span>
+            </div>
+
+            <div class="timing-group">
+              <label>Display Time:</label>
+              <input type="range" class="timing-slider" min="3" max="20" step="1" value="5">
+              <span class="timing-value">5s</span>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="schedule" role="tabpanel">
+            <div class="schedule-grid" aria-label="Schedules">
+              <button class="schedule-btn" data-player-id="2" data-schedule-slot="1" title="Schedule 1">—</button>
+              <button class="schedule-btn" data-player-id="2" data-schedule-slot="2" title="Schedule 2">—</button>
+              <button class="schedule-btn" data-player-id="2" data-schedule-slot="3" title="Schedule 3">—</button>
+            </div>
+            <label class="auto-start-label" title="Auto-start on app launch">
+              <input type="checkbox" class="auto-start-checkbox">
+              Auto-start
+            </label>
+          </div>
+
+          <div class="tab-panel" data-panel="output" role="tabpanel">
+            <div class="folder-group">
+              <button class="folder-btn">Select Folder</button>
+              <div class="folder-path">No folder selected</div>
+            </div>
+
+            <div class="scale-group">
+              <label>
+                <input type="checkbox" class="scale-fill-checkbox">
+                Scale to Fill
+              </label>
+              <button class="color-picker-btn" title="Background Color">
+                <span class="color-preview" style="background: #000000;"></span>
+              </button>
+            </div>
+
+            <div class="output-group">
+              <label>Output:</label>
+              <select class="output-select">
+                <option value="">None</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="player-card" data-player-id="3">
+        <div class="player-header">
+          <h2 class="player-name" title="Double-click to edit">Player 3</h2>
+          <div class="player-status">
+            <span class="status-indicator stopped"></span>
+            <span class="status-text">Stopped</span>
+          </div>
+        </div>
+        
+        <div class="player-preview">
+          <img class="preview-image preview-image-1" src="" alt="No image">
+          <img class="preview-image preview-image-2" src="" alt="No image">
+          <div class="preview-placeholder">No folder selected</div>
+        </div>
+        <button class="play-toggle-btn is-stopped" disabled>Start</button>
+
+        <div class="player-tabs" role="tablist" aria-label="Player 3 sections">
+          <button class="tab-btn active" data-tab="transition" role="tab" aria-selected="true">Transition</button>
+          <button class="tab-btn" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+          <button class="tab-btn" data-tab="output" role="tab" aria-selected="false">Output</button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="transition" role="tabpanel">
+            <div class="transition-toggle" aria-label="Transition type">
+              <button class="transition-toggle-btn active" data-transition="cut">Cut</button>
+              <button class="transition-toggle-btn" data-transition="crossfade">Fade</button>
+            </div>
+            <select class="transition-type" aria-hidden="true" tabindex="-1">
+              <option value="cut">Cut</option>
+              <option value="crossfade">Crossfade</option>
+            </select>
+
+            <div class="duration-group">
+              <label>Fade:</label>
+              <input type="range" class="duration-slider" min="0.5" max="5" step="0.5" value="1">
+              <span class="duration-value">1.0s</span>
+            </div>
+
+            <div class="timing-group">
+              <label>Display Time:</label>
+              <input type="range" class="timing-slider" min="3" max="20" step="1" value="5">
+              <span class="timing-value">5s</span>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="schedule" role="tabpanel">
+            <div class="schedule-grid" aria-label="Schedules">
+              <button class="schedule-btn" data-player-id="3" data-schedule-slot="1" title="Schedule 1">—</button>
+              <button class="schedule-btn" data-player-id="3" data-schedule-slot="2" title="Schedule 2">—</button>
+              <button class="schedule-btn" data-player-id="3" data-schedule-slot="3" title="Schedule 3">—</button>
+            </div>
+            <label class="auto-start-label" title="Auto-start on app launch">
+              <input type="checkbox" class="auto-start-checkbox">
+              Auto-start
+            </label>
+          </div>
+
+          <div class="tab-panel" data-panel="output" role="tabpanel">
+            <div class="folder-group">
+              <button class="folder-btn">Select Folder</button>
+              <div class="folder-path">No folder selected</div>
+            </div>
+
+            <div class="scale-group">
+              <label>
+                <input type="checkbox" class="scale-fill-checkbox">
+                Scale to Fill
+              </label>
+              <button class="color-picker-btn" title="Background Color">
+                <span class="color-preview" style="background: #000000;"></span>
+              </button>
+            </div>
+
+            <div class="output-group">
+              <label>Output:</label>
+              <select class="output-select">
+                <option value="">None</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="player-card" data-player-id="4">
+        <div class="player-header">
+          <h2 class="player-name" title="Double-click to edit">Player 4</h2>
+          <div class="player-status">
+            <span class="status-indicator stopped"></span>
+            <span class="status-text">Stopped</span>
+          </div>
+        </div>
+        
+        <div class="player-preview">
+          <img class="preview-image preview-image-1" src="" alt="No image">
+          <img class="preview-image preview-image-2" src="" alt="No image">
+          <div class="preview-placeholder">No folder selected</div>
+        </div>
+        <button class="play-toggle-btn is-stopped" disabled>Start</button>
+
+        <div class="player-tabs" role="tablist" aria-label="Player 4 sections">
+          <button class="tab-btn active" data-tab="transition" role="tab" aria-selected="true">Transition</button>
+          <button class="tab-btn" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+          <button class="tab-btn" data-tab="output" role="tab" aria-selected="false">Output</button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="transition" role="tabpanel">
+            <div class="transition-toggle" aria-label="Transition type">
+              <button class="transition-toggle-btn active" data-transition="cut">Cut</button>
+              <button class="transition-toggle-btn" data-transition="crossfade">Fade</button>
+            </div>
+            <select class="transition-type" aria-hidden="true" tabindex="-1">
+              <option value="cut">Cut</option>
+              <option value="crossfade">Crossfade</option>
+            </select>
+
+            <div class="duration-group">
+              <label>Fade:</label>
+              <input type="range" class="duration-slider" min="0.5" max="5" step="0.5" value="1">
+              <span class="duration-value">1.0s</span>
+            </div>
+
+            <div class="timing-group">
+              <label>Display Time:</label>
+              <input type="range" class="timing-slider" min="3" max="20" step="1" value="5">
+              <span class="timing-value">5s</span>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="schedule" role="tabpanel">
+            <div class="schedule-grid" aria-label="Schedules">
+              <button class="schedule-btn" data-player-id="4" data-schedule-slot="1" title="Schedule 1">—</button>
+              <button class="schedule-btn" data-player-id="4" data-schedule-slot="2" title="Schedule 2">—</button>
+              <button class="schedule-btn" data-player-id="4" data-schedule-slot="3" title="Schedule 3">—</button>
+            </div>
+            <label class="auto-start-label" title="Auto-start on app launch">
+              <input type="checkbox" class="auto-start-checkbox">
+              Auto-start
+            </label>
+          </div>
+
+          <div class="tab-panel" data-panel="output" role="tabpanel">
+            <div class="folder-group">
+              <button class="folder-btn">Select Folder</button>
+              <div class="folder-path">No folder selected</div>
+            </div>
+
+            <div class="scale-group">
+              <label>
+                <input type="checkbox" class="scale-fill-checkbox">
+                Scale to Fill
+              </label>
+              <button class="color-picker-btn" title="Background Color">
+                <span class="color-preview" style="background: #000000;"></span>
+              </button>
+            </div>
+
+            <div class="output-group">
+              <label>Output:</label>
+              <select class="output-select">
+                <option value="">None</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color Picker Modal -->
+  <div id="color-picker-modal" class="modal">
+    <div class="modal-content color-picker-content">
+      <div class="modal-header">
+        <h2>Background Color</h2>
+        <button class="close-btn" id="color-picker-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="color-picker-preview">
+          <div class="preview-box" id="color-preview-box" style="background: #000000;"></div>
+        </div>
+        
+        <div class="color-slider-group">
+          <label>Red:</label>
+          <input type="range" id="red-slider" min="0" max="255" value="0">
+          <span id="red-value">0</span>
+        </div>
+        
+        <div class="color-slider-group">
+          <label>Green:</label>
+          <input type="range" id="green-slider" min="0" max="255" value="0">
+          <span id="green-value">0</span>
+        </div>
+        
+        <div class="color-slider-group">
+          <label>Blue:</label>
+          <input type="range" id="blue-slider" min="0" max="255" value="0">
+          <span id="blue-value">0</span>
+        </div>
+        
+        <div class="hex-input-group">
+          <label>Hex:</label>
+          <input type="text" id="hex-input" value="#000000" maxlength="7" placeholder="#000000">
+        </div>
+        
+        <button class="apply-color-btn" id="apply-color">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Title Modal -->
+  <div id="edit-title-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Player Title</h2>
+        <button class="close-btn" id="edit-title-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="padding: 20px 0;">
+          <label for="player-title-input">Enter custom title:</label>
+          <input type="text" id="player-title-input" class="text-input" maxlength="30" style="width: 100%; padding: 8px; margin-top: 10px; font-size: 14px; border: 1px solid #444; border-radius: 4px; background: #2a2a2a; color: white;" placeholder="Custom title...">
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button id="edit-title-reset" style="padding: 8px 16px; background: #666; border: none; border-radius: 4px; color: white; cursor: pointer;">Reset to Default</button>
+          <button id="edit-title-cancel" style="padding: 8px 16px; background: #444; border: none; border-radius: 4px; color: white; cursor: pointer;">Cancel</button>
+          <button id="edit-title-apply" class="apply-color-btn" style="padding: 8px 16px;">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Modal (Player 1 only) -->
+  <div id="schedule-modal" class="modal">
+    <div class="modal-content schedule-modal-content">
+      <div class="modal-header">
+        <h2 id="schedule-modal-title">Schedule</h2>
+        <button class="close-btn" id="schedule-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="schedule-field">
+          <label class="schedule-toggle">
+            <input type="checkbox" id="schedule-enabled">
+            Enable schedule
+          </label>
+        </div>
+        <div class="schedule-field">
+          <label>Time:</label>
+          <div class="schedule-time-picker" aria-label="Schedule time picker">
+            <div class="time-column" data-time-part="hour">
+              <button class="time-adjust up" data-time-action="hour-up" aria-label="Increase hour">▲</button>
+              <div id="schedule-hour" class="time-value">12</div>
+              <button class="time-adjust down" data-time-action="hour-down" aria-label="Decrease hour">▼</button>
+            </div>
+            <div class="time-separator">:</div>
+            <div class="time-column" data-time-part="minute">
+              <button class="time-adjust up" data-time-action="minute-up" aria-label="Increase minute">▲</button>
+              <div id="schedule-minute" class="time-value">00</div>
+              <button class="time-adjust down" data-time-action="minute-down" aria-label="Decrease minute">▼</button>
+            </div>
+            <div class="time-column" data-time-part="ampm">
+              <button class="time-adjust up" data-time-action="ampm-up" aria-label="Toggle AM/PM">▲</button>
+              <div id="schedule-ampm" class="time-value">AM</div>
+              <button class="time-adjust down" data-time-action="ampm-down" aria-label="Toggle AM/PM">▼</button>
+            </div>
+          </div>
+        </div>
+        <div class="schedule-field">
+          <label>Folder:</label>
+          <div class="schedule-folder-row">
+            <div id="schedule-folder-path" class="schedule-folder-path">No folder selected</div>
+            <button id="schedule-pick-folder" class="folder-btn small">Select Folder</button>
+          </div>
+        </div>
+        <div class="schedule-actions">
+          <button id="schedule-clear" class="schedule-clear-btn">Clear</button>
+          <button id="schedule-apply" class="apply-color-btn">Save Schedule</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Settings Modal -->
+  <div id="output-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Output Settings</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Configure output settings for each player using the Output dropdown in each player card.</p>
+        <div class="output-info">
+          <h3>Available Output Types:</h3>
+          <ul>
+            <li><strong>Extended Monitors:</strong> Output to connected displays</li>
+            <li><strong>DeckLink Outputs:</strong> Available when a DeckLink device is connected</li>
+          </ul>
+        </div>
+        <div class="decklink-panel">
+          <div class="decklink-header">
+            <h3>DeckLink Devices</h3>
+            <button id="decklink-refresh-btn" class="menu-btn small">Test / Refresh</button>
+          </div>
+          <div id="decklink-status" class="decklink-status">Not checked yet.</div>
+          <div class="decklink-settings">
+            <label for="decklink-video-mode">DeckLink Video Mode:</label>
+            <select id="decklink-video-mode" class="decklink-video-mode-select"></select>
+          </div>
+          <ul id="decklink-device-list" class="decklink-device-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal">
+    <div class="modal-content help-modal-content">
+      <div class="modal-header">
+        <h2>Player Controls Help</h2>
+        <button class="close-btn" id="help-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-section">
+          <h3>Folder & Playback</h3>
+          <ul>
+            <li><strong>Select Folder</strong> — Choose a folder of images for the player.</li>
+            <li><strong>Start</strong> — Begin playback of the selected folder.</li>
+            <li><strong>Stop</strong> — Pause playback.</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>Transitions & Timing</h3>
+          <ul>
+            <li><strong>Transition</strong> — Choose Cut (instant) or Crossfade.</li>
+            <li><strong>Fade</strong> — Crossfade duration (0.5–5s).</li>
+            <li><strong>Display Time</strong> — Time each image stays on screen.</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>Image Layout</h3>
+          <ul>
+            <li><strong>Scale to Fill</strong> — Crop to fill the frame.</li>
+            <li><strong>Color</strong> — Set a background color.</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>Output</h3>
+          <ul>
+            <li><strong>Output</strong> — Choose a display.</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>Schedules</h3>
+          <ul>
+            <li><strong>Schedule buttons</strong> — Set up to 3 timed folder switches per player.</li>
+            <li><strong>Enable schedule</strong> — Activates the selected schedule slot.</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>Player Titles</h3>
+          <ul>
+            <li><strong>Double‑click player name</strong> — Edit the title inline.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

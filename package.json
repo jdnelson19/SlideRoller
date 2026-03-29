@@ -1,0 +1,72 @@
+{
+  "name": "slide-roller",
+  "version": "1.0.0",
+  "description": "Professional image slideshow player with 4 independent players and hardware output support",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:addon": "node-gyp rebuild",
+    "rebuild:addon": "electron-rebuild -f -w decklink_addon",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "slideshow",
+    "media-player",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^3.1.1",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9",
+    "node-addon-api": "^7.0.0",
+    "node-gyp": "^10.2.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "electron-store": "^8.1.0",
+    "sharp": "^0.34.5"
+  },
+  "build": {
+    "appId": "com.slideroller.app",
+    "productName": "Slide Roller",
+    "afterSign": "scripts/notarize.js",
+    "asarUnpack": [
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/sharp-libvips-*/**",
+      "**/node_modules/@img/sharp-*/**",
+      "**/*.node"
+    ],
+    "mac": {
+      "category": "public.app-category.video",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "identity": "${env.CSC_NAME}",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "files": [
+      "src/**/*",
+      "!src/native/decklink/**",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    }
+  }
+}
