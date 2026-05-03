@@ -62,11 +62,9 @@
           </div>
 
           <div class="tab-panel" data-panel="schedule" role="tabpanel">
-            <div class="schedule-grid" aria-label="Schedules">
-              <button class="schedule-btn" data-player-id="1" data-schedule-slot="1" title="Schedule 1">—</button>
-              <button class="schedule-btn" data-player-id="1" data-schedule-slot="2" title="Schedule 2">—</button>
-              <button class="schedule-btn" data-player-id="1" data-schedule-slot="3" title="Schedule 3">—</button>
-            </div>
+            <div class="schedule-list" data-player-id="1" aria-label="Schedules"></div>
+            <button class="schedule-add-btn" data-player-id="1">Add Schedule</button>
+            <div class="schedule-empty-state" data-player-id="1" hidden>No schedules yet.</div>
             <label class="auto-start-label" title="Auto-start on app launch">
               <input type="checkbox" class="auto-start-checkbox">
               Auto-start
@@ -145,11 +143,9 @@
           </div>
 
           <div class="tab-panel" data-panel="schedule" role="tabpanel">
-            <div class="schedule-grid" aria-label="Schedules">
-              <button class="schedule-btn" data-player-id="2" data-schedule-slot="1" title="Schedule 1">—</button>
-              <button class="schedule-btn" data-player-id="2" data-schedule-slot="2" title="Schedule 2">—</button>
-              <button class="schedule-btn" data-player-id="2" data-schedule-slot="3" title="Schedule 3">—</button>
-            </div>
+            <div class="schedule-list" data-player-id="2" aria-label="Schedules"></div>
+            <button class="schedule-add-btn" data-player-id="2">Add Schedule</button>
+            <div class="schedule-empty-state" data-player-id="2" hidden>No schedules yet.</div>
             <label class="auto-start-label" title="Auto-start on app launch">
               <input type="checkbox" class="auto-start-checkbox">
               Auto-start
@@ -228,11 +224,9 @@
           </div>
 
           <div class="tab-panel" data-panel="schedule" role="tabpanel">
-            <div class="schedule-grid" aria-label="Schedules">
-              <button class="schedule-btn" data-player-id="3" data-schedule-slot="1" title="Schedule 1">—</button>
-              <button class="schedule-btn" data-player-id="3" data-schedule-slot="2" title="Schedule 2">—</button>
-              <button class="schedule-btn" data-player-id="3" data-schedule-slot="3" title="Schedule 3">—</button>
-            </div>
+            <div class="schedule-list" data-player-id="3" aria-label="Schedules"></div>
+            <button class="schedule-add-btn" data-player-id="3">Add Schedule</button>
+            <div class="schedule-empty-state" data-player-id="3" hidden>No schedules yet.</div>
             <label class="auto-start-label" title="Auto-start on app launch">
               <input type="checkbox" class="auto-start-checkbox">
               Auto-start
@@ -311,11 +305,9 @@
           </div>
 
           <div class="tab-panel" data-panel="schedule" role="tabpanel">
-            <div class="schedule-grid" aria-label="Schedules">
-              <button class="schedule-btn" data-player-id="4" data-schedule-slot="1" title="Schedule 1">—</button>
-              <button class="schedule-btn" data-player-id="4" data-schedule-slot="2" title="Schedule 2">—</button>
-              <button class="schedule-btn" data-player-id="4" data-schedule-slot="3" title="Schedule 3">—</button>
-            </div>
+            <div class="schedule-list" data-player-id="4" aria-label="Schedules"></div>
+            <button class="schedule-add-btn" data-player-id="4">Add Schedule</button>
+            <div class="schedule-empty-state" data-player-id="4" hidden>No schedules yet.</div>
             <label class="auto-start-label" title="Auto-start on app launch">
               <input type="checkbox" class="auto-start-checkbox">
               Auto-start
@@ -421,6 +413,10 @@
       </div>
       <div class="modal-body">
         <div class="schedule-field">
+          <label>Name:</label>
+          <input type="text" id="schedule-name" class="schedule-name-input" placeholder="e.g. Morning show">
+        </div>
+        <div class="schedule-field">
           <label class="schedule-toggle">
             <input type="checkbox" id="schedule-enabled">
             Enable schedule
@@ -448,6 +444,18 @@
           </div>
         </div>
         <div class="schedule-field">
+          <label>Days:</label>
+          <div class="schedule-days" role="group" aria-label="Schedule days of the week">
+            <label class="schedule-day-pill"><input type="checkbox" value="0">Sun</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="1">Mon</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="2">Tue</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="3">Wed</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="4">Thu</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="5">Fri</label>
+            <label class="schedule-day-pill"><input type="checkbox" value="6">Sat</label>
+          </div>
+        </div>
+        <div class="schedule-field">
           <label>Folder:</label>
           <div class="schedule-folder-row">
             <div id="schedule-folder-path" class="schedule-folder-path">No folder selected</div>
@@ -455,7 +463,7 @@
           </div>
         </div>
         <div class="schedule-actions">
-          <button id="schedule-clear" class="schedule-clear-btn">Clear</button>
+          <button id="schedule-clear" class="schedule-clear-btn">Delete</button>
           <button id="schedule-apply" class="apply-color-btn">Save Schedule</button>
         </div>
       </div>
@@ -534,8 +542,9 @@
         <div class="help-section">
           <h3>Schedules</h3>
           <ul>
-            <li><strong>Schedule buttons</strong> — Set up to 3 timed folder switches per player.</li>
+            <li><strong>Add Schedule</strong> — Create as many timed folder switches as you need for each player.</li>
             <li><strong>Enable schedule</strong> — Activates the selected schedule slot.</li>
+            <li><strong>Days</strong> — Choose which weekdays each scheduled folder switch can run on.</li>
           </ul>
         </div>
         <div class="help-section">

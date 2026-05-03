@@ -5,7 +5,9 @@ let addonInstance = null;
 
 function resolveAddonPath() {
   const appRoot = path.resolve(__dirname, '..', '..');
-  return path.join(appRoot, 'build', 'Release', 'decklink_addon.node');
+  const addonPath = path.join(appRoot, 'build', 'Release', 'decklink_addon.node');
+  // In a packaged Electron app, .node files are extracted from the asar bundle
+  return addonPath.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 }
 
 function loadAddon() {
@@ -27,6 +29,13 @@ function listDevices() {
   }
 
   if (result.status !== 0) {
+    // Try to extract the specific error from worker stdout before falling back to generic message
+    if (result.stdout) {
+      try {
+        const parsed = JSON.parse(result.stdout);
+        if (parsed.error) return { ok: false, devices: [], error: parsed.error, diagnostics: parsed.diagnostics };
+      } catch (_) { /* ignore parse errors */ }
+    }
     const signalInfo = result.signal ? ` (signal: ${result.signal})` : '';
     const stderrInfo = result.stderr ? ` ${result.stderr}` : '';
     return { ok: false, devices: [], error: `DeckLink worker failed${signalInfo}.${stderrInfo}`.trim() };

@@ -203,13 +203,58 @@ function resetPlayerToDefaults(playerId) {
 
 function resetAllSchedulesToDefaults() {
   for (let playerId = 1; playerId <= 4; playerId++) {
-    scheduleState.schedulesByPlayer[playerId] = [
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false }
-    ];
-    updateScheduleButtonsUI(playerId);
+    scheduleState.schedulesByPlayer[playerId] = [createDefaultSchedule()];
+    renderScheduleList(playerId);
   }
+}
+
+const ALL_SCHEDULE_DAYS = [0, 1, 2, 3, 4, 5, 6];
+// MTWRFSU order: Mon Tue Wed Thu Fri Sat Sun
+const SCHEDULE_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const SCHEDULE_DAY_CODES = { 0: 'U', 1: 'M', 2: 'T', 3: 'W', 4: 'R', 5: 'F', 6: 'S' };
+
+function createDefaultSchedule() {
+  return { name: '', time: '', folderPath: '', lastRunDate: '', enabled: false, daysOfWeek: [...ALL_SCHEDULE_DAYS] };
+}
+
+function normalizeSchedule(item = {}) {
+  const normalizedDays = Array.isArray(item.daysOfWeek)
+    ? Array.from(new Set(item.daysOfWeek
+      .map(day => Number.parseInt(day, 10))
+      .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)))
+    : [...ALL_SCHEDULE_DAYS];
+
+  return {
+    name: item.name || '',
+    time: item.time || '',
+    folderPath: item.folderPath || '',
+    lastRunDate: item.lastRunDate || '',
+    enabled: !!item.enabled,
+    daysOfWeek: Array.isArray(item.daysOfWeek) ? normalizedDays : [...ALL_SCHEDULE_DAYS]
+  };
+}
+
+function getSelectedScheduleDays() {
+  return Array.from(document.querySelectorAll('.schedule-days input:checked'))
+    .map(input => Number.parseInt(input.value, 10))
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+    .sort((left, right) => left - right);
+}
+
+function setSelectedScheduleDays(daysOfWeek) {
+  const selected = new Set(normalizeSchedule({ daysOfWeek }).daysOfWeek);
+  document.querySelectorAll('.schedule-days input').forEach(input => {
+    const day = Number.parseInt(input.value, 10);
+    input.checked = selected.has(day);
+  });
+}
+
+function formatScheduleDays(daysOfWeek) {
+  const normalized = normalizeSchedule({ daysOfWeek }).daysOfWeek;
+  if (normalized.length === 0) return 'No days';
+  if (normalized.length === ALL_SCHEDULE_DAYS.length) return 'Every day';
+  const selected = new Set(normalized);
+  return SCHEDULE_DAY_ORDER.filter(d => selected.has(d)).map(d => SCHEDULE_DAY_CODES[d]).join('');
 }
 
 // Scheduling (all players)
@@ -217,26 +262,10 @@ const scheduleState = {
   activePlayerId: 1,
   activeSlot: 1,
   schedulesByPlayer: {
-    1: [
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false }
-    ],
-    2: [
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false }
-    ],
-    3: [
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false }
-    ],
-    4: [
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false },
-      { time: '', folderPath: '', lastRunDate: '', enabled: false }
-    ]
+    1: [createDefaultSchedule()],
+    2: [createDefaultSchedule()],
+    3: [createDefaultSchedule()],
+    4: [createDefaultSchedule()]
   },
   checkerId: null
 };
@@ -247,15 +276,22 @@ function setupScheduleModal() {
   const pickFolderBtn = document.getElementById('schedule-pick-folder');
   const applyBtn = document.getElementById('schedule-apply');
   const clearBtn = document.getElementById('schedule-clear');
-  const enabledCheckbox = document.getElementById('schedule-enabled');
   const timeControls = modal.querySelectorAll('.time-adjust');
 
-  document.querySelectorAll('.schedule-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const slot = parseInt(btn.dataset.scheduleSlot, 10);
-      const playerId = parseInt(btn.dataset.playerId, 10);
+  document.addEventListener('click', event => {
+    const scheduleButton = event.target.closest('.schedule-btn');
+    if (scheduleButton) {
+      const slot = parseInt(scheduleButton.dataset.scheduleSlot, 10);
+      const playerId = parseInt(scheduleButton.dataset.playerId, 10);
       openScheduleModal(playerId, slot);
-    });
+      return;
+    }
+
+    const addButton = event.target.closest('.schedule-add-btn');
+    if (addButton) {
+      const playerId = parseInt(addButton.dataset.playerId, 10);
+      addScheduleSlot(playerId);
+    }
   });
 
   closeBtn.addEventListener('click', () => {
@@ -295,8 +331,9 @@ function setupScheduleModal() {
   });
 
   applyBtn.addEventListener('click', () => {
-    saveScheduleFromModal();
-    modal.classList.remove('active');
+    if (saveScheduleFromModal()) {
+      modal.classList.remove('active');
+    }
   });
 
   clearBtn.addEventListener('click', () => {
@@ -314,10 +351,15 @@ function openScheduleModal(playerId, slot) {
   const enabledCheckbox = document.getElementById('schedule-enabled');
   const folderPath = document.getElementById('schedule-folder-path');
 
+  if (!schedule) return;
+
+  const nameInput = document.getElementById('schedule-name');
   title.textContent = `Player ${playerId} • Schedule ${slot}`;
+  if (nameInput) nameInput.value = schedule.name || '';
   const { hour12, minute, ampm } = parseTimeToParts(schedule.time);
   setScheduleTimeDisplay(hour12, minute, ampm);
   enabledCheckbox.checked = !!schedule.enabled;
+  setSelectedScheduleDays(schedule.daysOfWeek);
   folderPath.textContent = schedule.folderPath || 'No folder selected';
   folderPath.title = schedule.folderPath || '';
 
@@ -330,29 +372,58 @@ function updateScheduleFolderPath(path) {
   folderPath.title = path;
 }
 
+function addScheduleSlot(playerId) {
+  const schedules = scheduleState.schedulesByPlayer[playerId] || [];
+  schedules.push(createDefaultSchedule());
+  scheduleState.schedulesByPlayer[playerId] = schedules;
+  persistSchedules(playerId);
+  renderScheduleList(playerId);
+  openScheduleModal(playerId, schedules.length);
+}
+
 function saveScheduleFromModal() {
   const playerId = scheduleState.activePlayerId;
   const slot = scheduleState.activeSlot;
   const folderPath = document.getElementById('schedule-folder-path').textContent;
   const time24 = getScheduleTime24();
   const enabledCheckbox = document.getElementById('schedule-enabled');
+  const previousSchedule = scheduleState.schedulesByPlayer[playerId][slot - 1];
+  const daysOfWeek = getSelectedScheduleDays();
+
+  if (daysOfWeek.length === 0) {
+    alert('Select at least one day for this schedule.');
+    return false;
+  }
+
+  const nameInput = document.getElementById('schedule-name');
+  const scheduleName = nameInput ? nameInput.value.trim() : '';
 
   scheduleState.schedulesByPlayer[playerId][slot - 1] = {
+    name: scheduleName,
     time: time24,
     folderPath: folderPath === 'No folder selected' ? '' : folderPath,
-    lastRunDate: scheduleState.schedulesByPlayer[playerId][slot - 1].lastRunDate || '',
-    enabled: !!enabledCheckbox.checked
+    lastRunDate: previousSchedule.lastRunDate || '',
+    enabled: !!enabledCheckbox.checked,
+    daysOfWeek
   };
 
   persistSchedules(playerId);
-  updateScheduleButtonsUI(playerId);
+  renderScheduleList(playerId);
+  return true;
 }
 
 function clearScheduleSlot(slot) {
   const playerId = scheduleState.activePlayerId;
-  scheduleState.schedulesByPlayer[playerId][slot - 1] = { time: '', folderPath: '', lastRunDate: '', enabled: false };
+  const schedules = scheduleState.schedulesByPlayer[playerId] || [];
+  if (schedules.length > 1) {
+    schedules.splice(slot - 1, 1);
+  } else {
+    schedules[0] = createDefaultSchedule();
+  }
+
+  scheduleState.activeSlot = Math.min(slot, schedules.length);
   persistSchedules(playerId);
-  updateScheduleButtonsUI(playerId);
+  renderScheduleList(playerId);
 }
 
 function persistSchedules(playerId) {
@@ -389,36 +460,69 @@ async function loadAllSchedules() {
     if (stored) {
       try {
         const parsed = Array.isArray(stored) ? stored : JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length === 3) {
-          scheduleState.schedulesByPlayer[playerId] = parsed.map(item => ({
-            time: item.time || '',
-            folderPath: item.folderPath || '',
-            lastRunDate: item.lastRunDate || '',
-            enabled: !!item.enabled
-          }));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          scheduleState.schedulesByPlayer[playerId] = parsed.map(item => normalizeSchedule(item));
         }
       } catch (error) {
         console.error(`Failed to load schedules for player ${playerId}:`, error);
       }
     }
 
-    updateScheduleButtonsUI(playerId);
+    renderScheduleList(playerId);
   }
 }
 
-function updateScheduleButtonsUI(playerId) {
-  const buttons = document.querySelectorAll(`[data-player-id="${playerId}"] .schedule-btn`);
-  buttons.forEach((btn, index) => {
-    const schedule = scheduleState.schedulesByPlayer[playerId][index];
+function renderScheduleList(playerId) {
+  const container = document.querySelector(`.schedule-list[data-player-id="${playerId}"]`);
+  const emptyState = document.querySelector(`.schedule-empty-state[data-player-id="${playerId}"]`);
+  if (!container) return;
+
+  const schedules = scheduleState.schedulesByPlayer[playerId] || [];
+  container.replaceChildren();
+
+  schedules.forEach((schedule, index) => {
+    const slot = index + 1;
     const hasConfig = schedule.time && schedule.folderPath;
     const isActive = hasConfig && schedule.enabled;
-    btn.classList.toggle('configured', hasConfig);
-    btn.classList.toggle('active', isActive);
-    btn.textContent = hasConfig ? formatTimeShort(schedule.time) : '—';
-    btn.title = hasConfig
-      ? `Schedule ${index + 1}: ${formatTimeLabel(schedule.time)} → ${schedule.folderPath}`
-      : `Schedule ${index + 1}`;
+    const daySummary = formatScheduleDays(schedule.daysOfWeek);
+    const scheduleButton = document.createElement('button');
+    scheduleButton.className = 'schedule-btn';
+    scheduleButton.dataset.playerId = String(playerId);
+    scheduleButton.dataset.scheduleSlot = String(slot);
+    scheduleButton.classList.toggle('configured', hasConfig);
+    scheduleButton.classList.toggle('active', isActive);
+    const displayName = schedule.name || `Schedule ${slot}`;
+    const folderName = schedule.folderPath
+      ? (schedule.folderPath.replace(/\/+$/, '').split('/').pop() || schedule.folderPath)
+      : '';
+    const metaText = hasConfig
+      ? `${formatTimeLabel(schedule.time)} ${daySummary}${folderName ? ' · ' + folderName : ''}`
+      : 'Not configured yet';
+
+    scheduleButton.title = hasConfig
+      ? `${displayName}: ${formatTimeLabel(schedule.time)} ${daySummary} → ${schedule.folderPath}`
+      : displayName;
+
+    const contentEl = document.createElement('span');
+    contentEl.className = 'schedule-btn-content';
+    const titleEl = document.createElement('span');
+    titleEl.className = 'schedule-btn-title';
+    titleEl.textContent = displayName;
+    const metaEl = document.createElement('span');
+    metaEl.className = 'schedule-btn-meta';
+    metaEl.textContent = metaText;
+    contentEl.append(titleEl, metaEl);
+    scheduleButton.appendChild(contentEl);
+
+    const item = document.createElement('div');
+    item.className = 'schedule-list-item';
+    item.appendChild(scheduleButton);
+    container.appendChild(item);
   });
+
+  if (emptyState) {
+    emptyState.hidden = schedules.length > 0;
+  }
 
   updateScheduleIndicator(playerId);
 }
@@ -471,6 +575,7 @@ function checkSchedules() {
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5);
   const today = now.toISOString().slice(0, 10);
+  const currentDay = now.getDay();
 
   Object.keys(scheduleState.schedulesByPlayer).forEach(playerKey => {
     const playerId = parseInt(playerKey, 10);
@@ -478,6 +583,7 @@ function checkSchedules() {
     schedules.forEach(async (schedule, index) => {
       if (!schedule.enabled) return;
       if (!schedule.time || !schedule.folderPath) return;
+      if (!normalizeSchedule(schedule).daysOfWeek.includes(currentDay)) return;
       if (schedule.time !== currentTime) return;
       if (schedule.lastRunDate === today) return;
 

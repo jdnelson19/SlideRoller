@@ -62,6 +62,7 @@
       "src/**/*",
       "!src/native/decklink/**",
       "assets/**/*",
+      "build/Release/decklink_addon.node",
       "package.json"
     ],
     "directories": {

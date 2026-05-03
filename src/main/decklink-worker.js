@@ -2,7 +2,9 @@ const path = require('path');
 
 function resolveAddonPath() {
   const appRoot = path.resolve(__dirname, '..', '..');
-  return path.join(appRoot, 'build', 'Release', 'decklink_addon.node');
+  const addonPath = path.join(appRoot, 'build', 'Release', 'decklink_addon.node');
+  // In a packaged Electron app, .node files are extracted from the asar bundle
+  return addonPath.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 }
 
 function loadAddon() {

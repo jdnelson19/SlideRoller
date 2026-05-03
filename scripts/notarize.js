@@ -13,7 +13,9 @@ module.exports = async function notarizeApp(context) {
   const appleTeamId = process.env.APPLE_TEAM_ID;
 
   if (!appleId || !appleIdPassword || !appleTeamId) {
-    console.log('Skipping notarization: set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID to enable it.');
+    console.warn('WARNING: Skipping notarization — APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID are not set.');
+    console.warn('The app will NOT pass macOS Gatekeeper on other machines (shows "damaged" error).');
+    console.warn('Set these env vars and rebuild before distributing.');
     return;
   }
 

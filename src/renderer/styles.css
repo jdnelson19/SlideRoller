@@ -109,15 +109,38 @@ button {
   border: 1px solid #4a4a4a;
   color: #fff;
   width: 100%;
-  height: 36px;
+  min-height: 44px;
   border-radius: 6px;
   cursor: pointer;
   font-size: clamp(10px, 0.75vw, 12px);
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   transition: background 0.2s;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.schedule-btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.schedule-btn-title {
+  font-size: clamp(10px, 0.8vw, 13px);
+  font-weight: 700;
+  color: #fff;
+}
+
+.schedule-btn-meta {
+  font-size: clamp(9px, 0.72vw, 11px);
+  color: #bdbdbd;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -371,10 +394,39 @@ button {
   display: none;
 }
 
-.schedule-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.schedule-list {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.schedule-list-item {
+  display: flex;
+}
+
+.schedule-add-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  color: #d6d6d6;
+  border: 1px dashed #5a5a5a;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: clamp(10px, 0.8vw, 13px);
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.schedule-add-btn:hover {
+  background: #2e2e2e;
+  border-color: #7a7a7a;
+}
+
+.schedule-empty-state {
+  margin-top: 10px;
+  color: #8e8e8e;
+  font-size: clamp(9px, 0.75vw, 12px);
 }
 
 .folder-group {
@@ -696,6 +748,58 @@ button {
 .schedule-field label {
   font-size: clamp(10px, 0.85vw, 14px);
   color: #ccc;
+}
+
+.schedule-name-input {
+  background: #1a1a1a;
+  border: 1px solid #4a4a4a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: clamp(10px, 0.85vw, 14px);
+  padding: 8px 10px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.schedule-name-input:focus {
+  outline: none;
+  border-color: #0066cc;
+}
+
+.schedule-name-input::placeholder {
+  color: #666;
+}
+
+.schedule-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedule-day-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #4a4a4a;
+  border-radius: 999px;
+  background: #1a1a1a;
+  color: #ddd;
+  font-size: clamp(9px, 0.78vw, 12px);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.schedule-day-pill:has(input:checked) {
+  background: #274c77;
+  border-color: #4f8fc0;
+  color: #fff;
+}
+
+.schedule-day-pill input {
+  margin: 0;
 }
 
 .schedule-time-picker {
