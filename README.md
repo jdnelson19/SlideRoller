@@ -10,8 +10,11 @@ Slide Roller is a macOS Electron app for running up to 4 simultaneous image slid
 - Per-player display time control
 - Per-player background color and Scale to Fill option
 - Scheduling per player:
-  - Up to 3 schedule slots
-  - Enable/disable per slot
+  - Dynamic schedule list with 1 default schedule and unlimited additional schedules
+  - Editable schedule names
+  - Per-schedule day-of-week selection
+  - Enable/disable per schedule
+  - Delete or reset schedules from the schedule editor
   - Auto-start toggle
   - Header status indicator showing whether schedules are active
 - Output routing:
@@ -59,6 +62,11 @@ Build outputs are generated in the dist directory, including:
 - Slide Roller-<version>-arm64.dmg
 - Slide Roller-<version>-arm64-mac.zip
 
+Notes:
+
+- Local unsigned builds are fine for testing on the build machine.
+- For distribution to other Macs, configure signing and notarization environment variables before rebuilding.
+
 ## Download from GitHub Releases
 
 This repo includes an automated release workflow at .github/workflows/release.yml.
@@ -71,6 +79,11 @@ git push origin v1.0.1
 ```
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
+
+For a manual release, upload these files from the dist directory to a GitHub Release:
+
+- Slide Roller-<version>-arm64.dmg
+- Slide Roller-<version>-arm64-mac.zip
 
 
 ## DeckLink Notes
