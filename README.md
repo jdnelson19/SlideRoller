@@ -67,6 +67,28 @@ Notes:
 - Local unsigned builds are fine for testing on the build machine.
 - For distribution to other Macs, configure signing and notarization environment variables before rebuilding.
 
+### Unsigned Build Quarantine Workaround
+
+Current local builds may be unsigned, and macOS can block launch with a quarantine warning.
+
+If needed, remove quarantine from the app bundle in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine "dist/mac-arm64/Slide Roller.app"
+```
+
+If you are launching from a mounted DMG, remove quarantine from the copied app in Applications:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Slide Roller.app"
+```
+
+You can verify Gatekeeper assessment from Terminal:
+
+```bash
+spctl -a -vvv --type execute "dist/mac-arm64/Slide Roller.app" 2>&1 || true
+```
+
 ## Download from GitHub Releases
 
 This repo includes an automated release workflow at .github/workflows/release.yml.

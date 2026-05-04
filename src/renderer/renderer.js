@@ -22,9 +22,83 @@ const DECKLINK_VIDEO_MODES = [
 ];
 
 const DEFAULT_DECKLINK_VIDEO_MODE = '1080p59.94';
+let debugLogBridgeInitialized = false;
+const GLOBAL_TRANSITION_STORAGE_KEY = 'globalTransitionSettings';
+const MULTIVIEW_STATE_STORAGE_KEY = 'multiviewState';
+
+const globalTransitionState = {
+  isVisible: false,
+  enabled: false,
+  transitionType: 'cut',
+  fadeDuration: 1,
+  displayTime: 5
+};
+
+const multiviewState = {
+  outputSelection: '',
+  gridMode: '2x2'
+};
+
+const multiviewUi = {
+  modal: null,
+  outputModal: null,
+  outputSelect: null,
+  gridSelect: null
+};
+
+function formatDebugArg(value) {
+  if (value instanceof Error) {
+    return value.stack || value.message || String(value);
+  }
+
+  if (typeof value === 'string') return value;
+
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return String(value);
+  }
+}
+
+function sendDebugLog(level, args) {
+  const message = (Array.isArray(args) ? args : [args]).map(formatDebugArg).join(' ');
+  ipcRenderer.send('debug-log', {
+    level,
+    source: 'renderer',
+    message
+  });
+}
+
+function setupDebugLogBridge() {
+  if (debugLogBridgeInitialized) return;
+  debugLogBridgeInitialized = true;
+
+  const originalConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console)
+  };
+
+  ['log', 'info', 'warn', 'error'].forEach(level => {
+    console[level] = (...args) => {
+      originalConsole[level](...args);
+      sendDebugLog(level, args);
+    };
+  });
+
+  window.addEventListener('error', event => {
+    sendDebugLog('error', [`Uncaught error: ${event.message}`, event.error || '']);
+  });
+
+  window.addEventListener('unhandledrejection', event => {
+    sendDebugLog('error', ['Unhandled promise rejection:', event.reason || 'Unknown reason']);
+  });
+}
 
 // Initialize players
 document.addEventListener('DOMContentLoaded', async () => {
+  setupDebugLogBridge();
   initializePlayers();
   setupAppScaling();
   await loadOutputOptions();
@@ -33,6 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupColorPickerModal();
   setupScheduleModal();
   setupHelpModal();
+  setupGlobalTransitionFooter();
+  setupMultiviewModal();
   await ensureFirstRunIsClean();
   await loadAllPlayerStates();
   await loadAllSchedules();
@@ -49,28 +125,100 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   ipcRenderer.on('displays-changed', async () => {
     await loadOutputOptions();
+    await populateMultiviewOutputOptions();
   });
+
+  ipcRenderer.on('open-output-settings', () => {
+    openOutputSettingsModal();
+  });
+
+  ipcRenderer.on('open-multiview-settings', () => {
+    openMultiviewSettingsModal();
+  });
+
+  ipcRenderer.on('always-on-top-changed', (event, payload) => {
+    document.body.classList.toggle('always-on-top', !!(payload && payload.enabled));
+    if (typeof window.__applyAppScale === 'function') {
+      window.requestAnimationFrame(() => {
+        window.__applyAppScale();
+      });
+    }
+  });
+
+  ipcRenderer.on('set-player-layout', (event, payload) => {
+    const mode = payload && payload.mode ? payload.mode : 'four';
+    applyPlayerLayout(mode);
+  });
+
+  ipcRenderer.on('set-global-tab', (event, payload) => {
+    const tab = payload && payload.tab ? payload.tab : 'transition';
+    setGlobalTab(tab);
+  });
+
+  ipcRenderer.on('toggle-global-transition-footer', () => {
+    toggleGlobalTransitionFooter();
+  });
+
+  ipcRenderer.on('stop-all-players', () => {
+    stopAllPlayers();
+  });
+
+  ipcRenderer.on('player-output-lost', (event, payload) => {
+    const playerId = Number.parseInt(payload && payload.playerId, 10);
+    if (!Number.isInteger(playerId)) return;
+
+    const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+    if (!playerCard) return;
+
+    if (players[playerId] && players[playerId].isPlaying) {
+      stopPlayer(playerId, playerCard);
+    }
+
+    updatePlayerStatus(playerCard, 'lost-output');
+    showPlayerNotification(playerCard, payload && payload.reason ? payload.reason : 'Output lost', 'warning');
+  });
+
+  ipcRenderer.on('player-configurations-imported', (event, payload) => {
+    const importedFrom = payload && payload.filePath ? `\n\nSource: ${payload.filePath}` : '';
+    alert(`Player configurations were imported. The app will now reload to apply them.${importedFrom}`);
+    window.location.reload();
+  });
+
+  ipcRenderer.on('multiview-output-closed', () => {
+    multiviewState.outputSelection = '';
+    persistMultiviewState();
+  });
+
+  applyPlayerLayout(localStorage.getItem('playerLayoutMode') || 'four');
+  syncAllPlayerViewTiles();
+  await restoreMultiviewOutput();
 });
 
 function setupAppScaling() {
   const appContainer = document.querySelector('.app-container');
   if (!appContainer) return;
 
+  const baseWidth = window.innerWidth;
+  const baseHeight = window.innerHeight;
+
   const resize = () => {
     appContainer.style.transform = 'scale(1)';
     appContainer.style.width = '100%';
     appContainer.style.height = '100%';
 
-    const { scrollWidth, scrollHeight } = appContainer;
-    const { clientWidth, clientHeight } = document.documentElement;
-    const scaleX = clientWidth / scrollWidth;
-    const scaleY = clientHeight / scrollHeight;
-    const scale = Math.min(1, scaleX, scaleY);
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const scaleX = viewportWidth / baseWidth;
+    const scaleY = viewportHeight / baseHeight;
+    const MIN_READABLE_SCALE = 0.86;
+    const scale = Math.max(MIN_READABLE_SCALE, Math.min(1, scaleX, scaleY));
 
     appContainer.style.transform = `scale(${scale})`;
     appContainer.style.width = `${100 / scale}%`;
     appContainer.style.height = `${100 / scale}%`;
   };
+
+  window.__applyAppScale = resize;
 
   window.addEventListener('resize', () => {
     window.requestAnimationFrame(resize);
@@ -78,12 +226,136 @@ function setupAppScaling() {
 
   resize();
 }
+function getPlayerViewPayload(playerId, playerCard) {
+  const previewImages = Array.from(playerCard.querySelectorAll('.preview-image'));
+  const visibleImage = previewImages.find(image => image.classList.contains('visible'))
+    || previewImages.find(image => Boolean(image.currentSrc || image.src || image.getAttribute('src')))
+    || previewImages[0]
+    || null;
+  const playerName = playerCard.querySelector('.player-name');
+  const statusIndicator = playerCard.querySelector('.status-indicator');
+  const scaleFillCheckbox = playerCard.querySelector('.scale-fill-checkbox');
+  const imageSrc = visibleImage ? (visibleImage.currentSrc || visibleImage.src || visibleImage.getAttribute('src') || '') : '';
+
+  const nextSchedule = getNextScheduleInfo(playerId);
+
+  return {
+    title: playerName ? playerName.textContent : `Player ${playerId}`,
+    imageSrc,
+    backgroundColor: playerCard.dataset.backgroundColor || '#000000',
+    objectFit: scaleFillCheckbox && scaleFillCheckbox.checked ? 'cover' : 'contain',
+    status: statusIndicator ? Array.from(statusIndicator.classList).find(className => className !== 'status-indicator') || 'stopped' : 'stopped',
+    placeholder: imageSrc ? '' : 'No output preview',
+    scheduleText: nextSchedule.label
+  };
+}
+
+function syncPlayerViewTile(playerId, playerCard) {
+  if (!playerCard) return;
+  const payload = getPlayerViewPayload(playerId, playerCard);
+  ipcRenderer.send('multiview-update', { playerId, payload });
+}
+
+function schedulePlayerViewSync(playerId, playerCard) {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      updateLayoutScheduleSummary(playerId, playerCard);
+      syncPlayerViewTile(playerId, playerCard);
+    });
+  });
+}
+
+function syncAllPlayerViewTiles() {
+  for (let playerId = 1; playerId <= 4; playerId += 1) {
+    const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+    if (playerCard) {
+      updateLayoutScheduleSummary(playerId, playerCard);
+      syncPlayerViewTile(playerId, playerCard);
+    }
+  }
+}
+
+function ensureLayoutScheduleSummary(playerCard) {
+  const header = playerCard.querySelector('.player-header');
+  if (!header) return null;
+
+  let summary = header.querySelector('.layout-schedule-summary');
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.className = 'layout-schedule-summary';
+    const name = header.querySelector('.player-name');
+    if (name && name.nextSibling) {
+      header.insertBefore(summary, name.nextSibling);
+    } else {
+      header.appendChild(summary);
+    }
+  }
+
+  return summary;
+}
+
+function updateLayoutScheduleSummary(playerId, playerCard) {
+  const summary = ensureLayoutScheduleSummary(playerCard);
+  if (!summary) return;
+
+  const nextSchedule = getNextScheduleInfo(playerId);
+  const compactText = nextSchedule.time || 'No active schedule';
+  summary.textContent = compactText;
+  summary.title = compactText;
+}
+
+function loadMultiviewState() {
+  try {
+    const raw = localStorage.getItem(MULTIVIEW_STATE_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object') return;
+    multiviewState.outputSelection = typeof saved.outputSelection === 'string' ? saved.outputSelection : '';
+    multiviewState.gridMode = saved.gridMode === '2x1' ? '2x1' : '2x2';
+  } catch (error) {
+    console.error('Failed to load multiview state:', error);
+  }
+}
+
+function persistMultiviewState() {
+  try {
+    localStorage.setItem(MULTIVIEW_STATE_STORAGE_KEY, JSON.stringify(multiviewState));
+  } catch (error) {
+    console.error('Failed to persist multiview state:', error);
+  }
+}
 
 function setupHelpModal() {
   const modal = document.getElementById('help-modal');
   const closeBtn = document.getElementById('help-close');
+  const controlsTabBtn = document.getElementById('help-tab-controls');
+  const shortcutsTabBtn = document.getElementById('help-tab-shortcuts');
+  const controlsSection = document.getElementById('help-controls-section');
+  const shortcutsSection = document.getElementById('help-shortcuts-section');
 
   if (!modal || !closeBtn) return;
+
+  const setHelpSection = (section) => {
+    const useShortcuts = section === 'shortcuts';
+
+    if (controlsTabBtn) {
+      controlsTabBtn.classList.toggle('active', !useShortcuts);
+      controlsTabBtn.setAttribute('aria-selected', useShortcuts ? 'false' : 'true');
+    }
+    if (shortcutsTabBtn) {
+      shortcutsTabBtn.classList.toggle('active', useShortcuts);
+      shortcutsTabBtn.setAttribute('aria-selected', useShortcuts ? 'true' : 'false');
+    }
+    if (controlsSection) controlsSection.classList.toggle('active', !useShortcuts);
+    if (shortcutsSection) shortcutsSection.classList.toggle('active', useShortcuts);
+  };
+
+  if (controlsTabBtn) {
+    controlsTabBtn.addEventListener('click', () => setHelpSection('controls'));
+  }
+  if (shortcutsTabBtn) {
+    shortcutsTabBtn.addEventListener('click', () => setHelpSection('shortcuts'));
+  }
 
   closeBtn.addEventListener('click', () => {
     modal.classList.remove('active');
@@ -96,8 +368,147 @@ function setupHelpModal() {
   });
 
   ipcRenderer.on('open-help', () => {
+    setHelpSection('controls');
     modal.classList.add('active');
   });
+}
+
+function loadGlobalTransitionState() {
+  try {
+    const raw = localStorage.getItem(GLOBAL_TRANSITION_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object') return;
+
+    globalTransitionState.isVisible = !!saved.isVisible;
+    globalTransitionState.enabled = !!saved.enabled;
+    globalTransitionState.transitionType = saved.transitionType === 'crossfade' ? 'crossfade' : 'cut';
+
+    const fadeDuration = parseFloat(saved.fadeDuration);
+    const displayTime = parseInt(saved.displayTime, 10);
+    if (!Number.isNaN(fadeDuration)) {
+      globalTransitionState.fadeDuration = Math.max(0.5, Math.min(5, fadeDuration));
+    }
+    if (!Number.isNaN(displayTime)) {
+      globalTransitionState.displayTime = Math.max(3, Math.min(20, displayTime));
+    }
+  } catch (error) {
+    console.error('Failed to load global transition state:', error);
+  }
+}
+
+function persistGlobalTransitionState() {
+  try {
+    localStorage.setItem(GLOBAL_TRANSITION_STORAGE_KEY, JSON.stringify(globalTransitionState));
+  } catch (error) {
+    console.error('Failed to persist global transition state:', error);
+  }
+}
+
+function applyGlobalTransitionFooterUI() {
+  const footer = document.getElementById('global-transition-footer');
+  const enabledCheckbox = document.getElementById('global-transition-enabled');
+  const fadeSlider = document.getElementById('global-fade-duration');
+  const fadeValue = document.getElementById('global-fade-duration-value');
+  const displaySlider = document.getElementById('global-display-time');
+  const displayValue = document.getElementById('global-display-time-value');
+  const cutBtn = document.getElementById('global-transition-cut');
+  const fadeBtn = document.getElementById('global-transition-fade');
+
+  if (!footer) return;
+
+  footer.hidden = !globalTransitionState.isVisible;
+  document.body.classList.toggle('global-transition-footer-visible', globalTransitionState.isVisible);
+
+  if (enabledCheckbox) {
+    enabledCheckbox.checked = globalTransitionState.enabled;
+  }
+  if (fadeSlider) {
+    fadeSlider.value = String(globalTransitionState.fadeDuration);
+  }
+  if (fadeValue) {
+    fadeValue.textContent = `${globalTransitionState.fadeDuration.toFixed(1)}s`;
+  }
+  if (displaySlider) {
+    displaySlider.value = String(globalTransitionState.displayTime);
+  }
+  if (displayValue) {
+    displayValue.textContent = `${globalTransitionState.displayTime}s`;
+  }
+  if (cutBtn) {
+    cutBtn.classList.toggle('active', globalTransitionState.transitionType === 'cut');
+  }
+  if (fadeBtn) {
+    fadeBtn.classList.toggle('active', globalTransitionState.transitionType === 'crossfade');
+  }
+}
+
+function toggleGlobalTransitionFooter(forceVisible = null) {
+  const shouldShow = forceVisible === null ? !globalTransitionState.isVisible : !!forceVisible;
+  globalTransitionState.isVisible = shouldShow;
+  persistGlobalTransitionState();
+  applyGlobalTransitionFooterUI();
+  updateTabPanelMinHeights();
+  window.dispatchEvent(new Event('resize'));
+}
+
+function setupGlobalTransitionFooter() {
+  const footer = document.getElementById('global-transition-footer');
+  const enabledCheckbox = document.getElementById('global-transition-enabled');
+  const fadeSlider = document.getElementById('global-fade-duration');
+  const displaySlider = document.getElementById('global-display-time');
+  const cutBtn = document.getElementById('global-transition-cut');
+  const fadeBtn = document.getElementById('global-transition-fade');
+
+  if (!footer || !enabledCheckbox || !fadeSlider || !displaySlider || !cutBtn || !fadeBtn) return;
+
+  loadGlobalTransitionState();
+  applyGlobalTransitionFooterUI();
+
+  enabledCheckbox.addEventListener('change', () => {
+    globalTransitionState.enabled = enabledCheckbox.checked;
+    persistGlobalTransitionState();
+  });
+
+  fadeSlider.addEventListener('input', (event) => {
+    globalTransitionState.fadeDuration = parseFloat(event.target.value);
+    applyGlobalTransitionFooterUI();
+    persistGlobalTransitionState();
+  });
+
+  displaySlider.addEventListener('input', (event) => {
+    globalTransitionState.displayTime = parseInt(event.target.value, 10);
+    applyGlobalTransitionFooterUI();
+    persistGlobalTransitionState();
+  });
+
+  cutBtn.addEventListener('click', () => {
+    globalTransitionState.transitionType = 'cut';
+    applyGlobalTransitionFooterUI();
+    persistGlobalTransitionState();
+  });
+
+  fadeBtn.addEventListener('click', () => {
+    globalTransitionState.transitionType = 'crossfade';
+    applyGlobalTransitionFooterUI();
+    persistGlobalTransitionState();
+  });
+}
+
+function getEffectiveTransitionSettings(playerCard) {
+  if (globalTransitionState.enabled) {
+    return {
+      transitionType: globalTransitionState.transitionType,
+      duration: globalTransitionState.fadeDuration,
+      displayTime: globalTransitionState.displayTime
+    };
+  }
+
+  return {
+    transitionType: playerCard.querySelector('.transition-type').value,
+    duration: parseFloat(playerCard.querySelector('.duration-slider').value),
+    displayTime: parseInt(playerCard.querySelector('.timing-slider').value, 10)
+  };
 }
 
 ipcRenderer.on('reset-all-to-default', () => {
@@ -199,6 +610,7 @@ function resetPlayerToDefaults(playerId) {
 
   // Reset custom title
   resetToDefaultTitle(playerId, playerCard);
+  schedulePlayerViewSync(playerId, playerCard);
 }
 
 function resetAllSchedulesToDefaults() {
@@ -212,9 +624,18 @@ const ALL_SCHEDULE_DAYS = [0, 1, 2, 3, 4, 5, 6];
 // MTWRFSU order: Mon Tue Wed Thu Fri Sat Sun
 const SCHEDULE_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const SCHEDULE_DAY_CODES = { 0: 'U', 1: 'M', 2: 'T', 3: 'W', 4: 'R', 5: 'F', 6: 'S' };
+const SCHEDULE_DAY_NAMES = {
+  0: 'Sunday',
+  1: 'Monday',
+  2: 'Tuesday',
+  3: 'Wednesday',
+  4: 'Thursday',
+  5: 'Friday',
+  6: 'Saturday'
+};
 
 function createDefaultSchedule() {
-  return { name: '', time: '', folderPath: '', lastRunDate: '', enabled: false, daysOfWeek: [...ALL_SCHEDULE_DAYS] };
+  return { name: '', time: '', folderPath: '', lastRunDate: '', enabled: true, daysOfWeek: [] };
 }
 
 function normalizeSchedule(item = {}) {
@@ -253,8 +674,66 @@ function formatScheduleDays(daysOfWeek) {
   const normalized = normalizeSchedule({ daysOfWeek }).daysOfWeek;
   if (normalized.length === 0) return 'No days';
   if (normalized.length === ALL_SCHEDULE_DAYS.length) return 'Every day';
+  if (normalized.length === 1) return SCHEDULE_DAY_NAMES[normalized[0]];
   const selected = new Set(normalized);
   return SCHEDULE_DAY_ORDER.filter(d => selected.has(d)).map(d => SCHEDULE_DAY_CODES[d]).join('');
+}
+
+function getNextScheduleInfo(playerId) {
+  const schedules = scheduleState.schedulesByPlayer[playerId] || [];
+  const now = new Date();
+  let nextRun = null;
+
+  schedules.forEach((schedule, index) => {
+    const normalized = normalizeSchedule(schedule);
+    if (!normalized.enabled || !normalized.time || !normalized.folderPath || normalized.daysOfWeek.length === 0) {
+      return;
+    }
+
+    const [hourStr, minuteStr] = normalized.time.split(':');
+    const hour = Number.parseInt(hourStr, 10);
+    const minute = Number.parseInt(minuteStr, 10);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return;
+
+    for (let dayOffset = 0; dayOffset < 8; dayOffset += 1) {
+      const candidate = new Date(now);
+      candidate.setSeconds(0, 0);
+      candidate.setDate(now.getDate() + dayOffset);
+      candidate.setHours(hour, minute, 0, 0);
+
+      if (!normalized.daysOfWeek.includes(candidate.getDay())) continue;
+      if (candidate <= now) continue;
+
+      if (!nextRun || candidate < nextRun.date) {
+        nextRun = {
+          date: candidate,
+          time: normalized.time,
+          name: normalized.name || `Schedule ${index + 1}`
+        };
+      }
+      break;
+    }
+  });
+
+  if (!nextRun) {
+    return {
+      name: '',
+      time: '',
+      label: 'No active schedule'
+    };
+  }
+
+  const sameDay = nextRun.date.toDateString() === now.toDateString();
+  const dayLabel = sameDay
+    ? 'Today'
+    : nextRun.date.toLocaleDateString('en-US', { weekday: 'short' });
+
+  const timeLabel = `${dayLabel} ${formatTimeLabel(nextRun.time)}`;
+  return {
+    name: nextRun.name,
+    time: timeLabel,
+    label: `${nextRun.name} · ${timeLabel}`
+  };
 }
 
 // Scheduling (all players)
@@ -330,6 +809,16 @@ function setupScheduleModal() {
     btn.addEventListener('click', () => adjustScheduleTime(btn.dataset.timeAction));
   });
 
+  modal.addEventListener('keydown', event => {
+    const isSelectAll = event.metaKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'a';
+    if (!isSelectAll) return;
+
+    event.preventDefault();
+    document.querySelectorAll('.schedule-days input').forEach(input => {
+      input.checked = true;
+    });
+  });
+
   applyBtn.addEventListener('click', () => {
     if (saveScheduleFromModal()) {
       modal.classList.remove('active');
@@ -385,6 +874,7 @@ function saveScheduleFromModal() {
   const playerId = scheduleState.activePlayerId;
   const slot = scheduleState.activeSlot;
   const folderPath = document.getElementById('schedule-folder-path').textContent;
+  const normalizedFolderPath = (folderPath || '').trim();
   const time24 = getScheduleTime24();
   const enabledCheckbox = document.getElementById('schedule-enabled');
   const previousSchedule = scheduleState.schedulesByPlayer[playerId][slot - 1];
@@ -395,13 +885,18 @@ function saveScheduleFromModal() {
     return false;
   }
 
+  if (!normalizedFolderPath || normalizedFolderPath === 'No folder selected') {
+    alert('Select a content folder for this schedule.');
+    return false;
+  }
+
   const nameInput = document.getElementById('schedule-name');
   const scheduleName = nameInput ? nameInput.value.trim() : '';
 
   scheduleState.schedulesByPlayer[playerId][slot - 1] = {
     name: scheduleName,
     time: time24,
-    folderPath: folderPath === 'No folder selected' ? '' : folderPath,
+    folderPath: normalizedFolderPath,
     lastRunDate: previousSchedule.lastRunDate || '',
     enabled: !!enabledCheckbox.checked,
     daysOfWeek
@@ -525,6 +1020,10 @@ function renderScheduleList(playerId) {
   }
 
   updateScheduleIndicator(playerId);
+  const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+  if (playerCard) {
+    schedulePlayerViewSync(playerId, playerCard);
+  }
 }
 
 function ensureScheduleIndicator(playerCard) {
@@ -535,7 +1034,7 @@ function ensureScheduleIndicator(playerCard) {
   if (!badge) {
     badge = document.createElement('span');
     badge.className = 'schedule-activity-badge inactive';
-    badge.textContent = 'Schedule Off';
+    badge.textContent = 'Schedules (0)';
     playerStatus.prepend(badge);
   }
 
@@ -557,10 +1056,8 @@ function updateScheduleIndicator(playerId) {
 
   badge.classList.toggle('active', hasActiveSchedule);
   badge.classList.toggle('inactive', !hasActiveSchedule);
-  badge.textContent = hasActiveSchedule ? `Schedule On (${activeScheduleCount})` : 'Schedule Off';
-  badge.title = hasActiveSchedule
-    ? `${activeScheduleCount} active schedule${activeScheduleCount > 1 ? 's' : ''}`
-    : 'No active schedules';
+  badge.textContent = `Schedules (${activeScheduleCount})`;
+  badge.title = `${activeScheduleCount} enabled schedule${activeScheduleCount === 1 ? '' : 's'}`;
 }
 
 function startScheduleChecker() {
@@ -866,6 +1363,7 @@ async function selectFolder(playerId, playerCard) {
       previewImage.classList.add('visible');
       placeholder.style.display = 'none';
     }
+    schedulePlayerViewSync(playerId, playerCard);
     
     // Save state
     savePlayerState(playerId);
@@ -886,6 +1384,7 @@ function startPlayer(playerId, playerCard) {
 
   // Start playback
   playNextImage(playerId, playerCard);
+  schedulePlayerViewSync(playerId, playerCard);
 }
 
 function stopPlayer(playerId, playerCard) {
@@ -903,6 +1402,15 @@ function stopPlayer(playerId, playerCard) {
   updatePlayerStatus(playerCard, 'stopped');
   setPlayToggleState(playerCard, false, player.images.length > 0);
   playerCard.querySelector('.folder-btn').disabled = false;
+  schedulePlayerViewSync(playerId, playerCard);
+}
+
+function stopAllPlayers() {
+  for (let playerId = 1; playerId <= 4; playerId += 1) {
+    const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+    if (!playerCard || !players[playerId] || !players[playerId].isPlaying) continue;
+    stopPlayer(playerId, playerCard);
+  }
 }
 
 function handleFolderUpdate(playerId, newImages) {
@@ -946,6 +1454,8 @@ function handleFolderUpdate(playerId, newImages) {
     previewImage.classList.add('visible');
     placeholder.style.display = 'none';
   }
+
+  schedulePlayerViewSync(playerId, playerCard);
 }
 
 function showPlayerNotification(playerCard, message, type = 'info') {
@@ -983,9 +1493,7 @@ function playNextImage(playerId, playerCard) {
   if (!player.isPlaying || player.images.length === 0) return;
 
   const imagePath = player.images[player.currentIndex];
-  const transitionType = playerCard.querySelector('.transition-type').value;
-  const duration = parseFloat(playerCard.querySelector('.duration-slider').value);
-  const displayTime = parseInt(playerCard.querySelector('.timing-slider').value);
+  const { transitionType, duration, displayTime } = getEffectiveTransitionSettings(playerCard);
   const scaleFill = playerCard.querySelector('.scale-fill-checkbox').checked;
 
   // Get both preview images
@@ -1070,6 +1578,7 @@ function playNextImage(playerId, playerCard) {
 
   // Move to next image
   player.currentIndex = (player.currentIndex + 1) % player.images.length;
+  schedulePlayerViewSync(playerId, playerCard);
 
   // Schedule next image (display time only, transition happens during next cycle)
   const nextDelay = displayTime * 1000;
@@ -1081,7 +1590,16 @@ function updatePlayerStatus(playerCard, status) {
   const text = playerCard.querySelector('.status-text');
 
   indicator.className = `status-indicator ${status}`;
-  text.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  const label = status
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+  text.textContent = label;
+
+  const playerId = Number.parseInt(playerCard.dataset.playerId, 10);
+  if (Number.isInteger(playerId)) {
+    schedulePlayerViewSync(playerId, playerCard);
+  }
 }
 
 function setPlayToggleState(playerCard, isPlaying, hasImages = true) {
@@ -1115,6 +1633,28 @@ function setupPlayerTabs(playerCard) {
       updateTabPanelMinHeights();
     });
   });
+}
+
+function setGlobalTab(tabName) {
+  const allowedTabs = new Set(['transition', 'schedule', 'output']);
+  const targetTab = allowedTabs.has(tabName) ? tabName : 'transition';
+
+  document.querySelectorAll('.player-card').forEach(playerCard => {
+    const tabButtons = playerCard.querySelectorAll('.tab-btn');
+    const tabPanels = playerCard.querySelectorAll('.tab-panel');
+
+    tabButtons.forEach(button => {
+      const isActive = button.dataset.tab === targetTab;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    tabPanels.forEach(panel => {
+      panel.classList.toggle('active', panel.dataset.panel === targetTab);
+    });
+  });
+
+  updateTabPanelMinHeights();
 }
 
 function syncTransitionToggle(playerCard, transitionType) {
@@ -1152,8 +1692,9 @@ function updateTabPanelMinHeights() {
 }
 
 async function loadOutputOptions() {
+  const playerOutputSelects = document.querySelectorAll('.player-card .output-select');
   const previousSelections = new Map();
-  document.querySelectorAll('.output-select').forEach(select => {
+  playerOutputSelects.forEach(select => {
     const playerId = select.closest('.player-card')?.dataset.playerId;
     if (playerId) {
       previousSelections.set(playerId, select.value);
@@ -1174,14 +1715,14 @@ async function loadOutputOptions() {
   
   // Populate all output selects
   const activeOutputs = new Map();
-  document.querySelectorAll('.output-select').forEach(select => {
+  playerOutputSelects.forEach(select => {
     const playerId = select.closest('.player-card')?.dataset.playerId;
     if (playerId && select.value) {
       activeOutputs.set(playerId, select.value);
     }
   });
 
-  document.querySelectorAll('.output-select').forEach(select => {
+  playerOutputSelects.forEach(select => {
     // Clear existing options except "None"
     select.innerHTML = '<option value="">None</option>';
     
@@ -1236,6 +1777,7 @@ async function handleOutputChange(playerId, outputValue, playerCard) {
       // Close output window
       await ipcRenderer.invoke('close-output-window', playerId);
       await ipcRenderer.invoke('decklink-clear-output', { playerId });
+      updatePlayerStatus(playerCard, players[playerId].isPlaying ? 'playing' : 'stopped');
       await loadOutputOptions();
       return;
     }
@@ -1253,6 +1795,7 @@ async function handleOutputChange(playerId, outputValue, playerCard) {
         alert('Failed to create output window: ' + result.error);
         playerCard.querySelector('.output-select').value = '';
       }
+      updatePlayerStatus(playerCard, players[playerId].isPlaying ? 'playing' : 'stopped');
       await ipcRenderer.invoke('decklink-clear-output', { playerId });
       await loadOutputOptions();
       return;
@@ -1266,6 +1809,7 @@ async function handleOutputChange(playerId, outputValue, playerCard) {
         alert('Failed to set DeckLink output: ' + result.error);
         playerCard.querySelector('.output-select').value = '';
       }
+      updatePlayerStatus(playerCard, players[playerId].isPlaying ? 'playing' : 'stopped');
       await loadOutputOptions();
       return;
     }
@@ -1314,15 +1858,152 @@ async function refreshDeckLinkDevices() {
     if (button) button.disabled = false;
   }
 }
+
+async function populateMultiviewOutputOptions() {
+  const select = document.getElementById('multiview-output-select');
+  if (!select) return;
+
+  const displays = await ipcRenderer.invoke('get-displays');
+  const activeOutputs = new Set();
+  document.querySelectorAll('.player-card .output-select, #multiview-output-select').forEach(outputSelect => {
+    if (outputSelect.value && outputSelect.value.startsWith('display:')) {
+      activeOutputs.add(outputSelect.value);
+    }
+  });
+
+  select.innerHTML = '<option value="">None</option>';
+  displays.forEach(display => {
+    const option = document.createElement('option');
+    option.value = `display:${display.id}`;
+    option.textContent = display.label;
+    if (activeOutputs.has(option.value) && multiviewState.outputSelection !== option.value) {
+      option.disabled = true;
+      option.textContent = `${display.label} (In use)`;
+    }
+    select.appendChild(option);
+  });
+
+  if (multiviewState.outputSelection && select.querySelector(`option[value="${multiviewState.outputSelection}"]`)) {
+    select.value = multiviewState.outputSelection;
+  }
+}
+
+async function applyMultiviewOutput() {
+  if (!multiviewState.outputSelection) {
+    await ipcRenderer.invoke('clear-multiview-output');
+    persistMultiviewState();
+    return true;
+  }
+
+  if (!multiviewState.outputSelection.startsWith('display:')) {
+    alert('Multiview currently supports display outputs.');
+    return false;
+  }
+
+  const displayId = Number.parseInt(multiviewState.outputSelection.split(':')[1], 10);
+  const result = await ipcRenderer.invoke('set-multiview-output', {
+    displayId,
+    gridMode: multiviewState.gridMode
+  });
+
+  if (!result || !result.success) {
+    alert(`Failed to enable multiview: ${result && result.error ? result.error : 'Unknown error'}`);
+    return false;
+  }
+
+  ipcRenderer.send('multiview-grid-mode', { gridMode: multiviewState.gridMode });
+  persistMultiviewState();
+  return true;
+}
+
+async function restoreMultiviewOutput() {
+  loadMultiviewState();
+  await populateMultiviewOutputOptions();
+  if (multiviewState.outputSelection) {
+    await applyMultiviewOutput();
+  }
+}
+
+function setupMultiviewModal() {
+  const outputModal = document.getElementById('output-modal');
+  const multiviewModal = document.getElementById('multiview-modal');
+  const closeBtn = document.getElementById('multiview-close');
+  const applyBtn = document.getElementById('multiview-apply');
+  const disableBtn = document.getElementById('multiview-disable');
+  const outputSelect = document.getElementById('multiview-output-select');
+  const gridSelect = document.getElementById('multiview-grid-select');
+
+  if (!multiviewModal || !closeBtn || !applyBtn || !disableBtn || !outputSelect || !gridSelect) {
+    return;
+  }
+
+  multiviewUi.modal = multiviewModal;
+  multiviewUi.outputModal = outputModal;
+  multiviewUi.outputSelect = outputSelect;
+  multiviewUi.gridSelect = gridSelect;
+
+  const syncForm = async () => {
+    loadMultiviewState();
+    await populateMultiviewOutputOptions();
+    gridSelect.value = multiviewState.gridMode;
+  };
+
+  openMultiviewSettingsModal = async () => {
+    if (outputModal) outputModal.classList.remove('active');
+    await syncForm();
+    multiviewModal.classList.add('active');
+  };
+
+  closeBtn.addEventListener('click', () => {
+    multiviewModal.classList.remove('active');
+  });
+
+  multiviewModal.addEventListener('click', event => {
+    if (event.target === multiviewModal) {
+      multiviewModal.classList.remove('active');
+    }
+  });
+
+  applyBtn.addEventListener('click', async () => {
+    multiviewState.outputSelection = outputSelect.value;
+    multiviewState.gridMode = gridSelect.value === '2x1' ? '2x1' : '2x2';
+    const success = await applyMultiviewOutput();
+    if (success) {
+      multiviewModal.classList.remove('active');
+    }
+  });
+
+  disableBtn.addEventListener('click', async () => {
+    multiviewState.outputSelection = '';
+    outputSelect.value = '';
+    await applyMultiviewOutput();
+    multiviewModal.classList.remove('active');
+  });
+}
+
+let openMultiviewSettingsModal = async () => {
+  const modal = multiviewUi.modal;
+  if (modal) {
+    modal.classList.add('active');
+  }
+};
+function openOutputSettingsModal() {
+  const modal = document.getElementById('output-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+}
+
 function setupOutputSettingsModal() {
   const modal = document.getElementById('output-modal');
   const btn = document.getElementById('output-settings-btn');
-  if (!modal || !btn) return;
+  if (!modal) return;
   const closeBtn = modal.querySelector('.close-btn');
 
-  btn.addEventListener('click', () => {
-    modal.classList.add('active');
-  });
+  if (btn) {
+    btn.addEventListener('click', () => {
+      openOutputSettingsModal();
+    });
+  }
 
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
@@ -1336,6 +2017,17 @@ function setupOutputSettingsModal() {
       modal.classList.remove('active');
     }
   });
+}
+
+function applyPlayerLayout(mode) {
+  const allowedModes = new Set(['two', 'four', 'grid-2x2', 'stack-1x4']);
+  const nextMode = allowedModes.has(mode) ? mode : 'four';
+  document.body.classList.toggle('layout-two', nextMode === 'two');
+  document.body.classList.toggle('layout-four', nextMode === 'four');
+  document.body.classList.toggle('layout-grid-2x2', nextMode === 'grid-2x2');
+  document.body.classList.toggle('layout-stack-1x4', nextMode === 'stack-1x4');
+  localStorage.setItem('playerLayoutMode', nextMode);
+  updateTabPanelMinHeights();
 }
 
 function getDeckLinkVideoModeSetting() {
@@ -1527,6 +2219,7 @@ function applyBackgroundColor(playerId, playerCard, hexColor) {
   
   // Send to output window
   ipcRenderer.send('update-background-color', { playerId, color: hexColor });
+  schedulePlayerViewSync(playerId, playerCard);
   
   // Save state
   savePlayerState(playerId);
@@ -1698,6 +2391,8 @@ async function loadPlayerState(playerId) {
     }
   }
 
+  schedulePlayerViewSync(playerId, playerCard);
+
   console.log(`Loaded state for player ${playerId}`);
 }
 
@@ -1767,6 +2462,8 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
         placeholder.style.display = 'none';
       }
     }
+
+    schedulePlayerViewSync(playerId, playerCard);
 
     console.log(`Restored folder for player ${playerId}: ${folderPath} (${result.images.length} images)`);
   } catch (error) {
@@ -1847,6 +2544,7 @@ function applyCustomTitle(playerId, playerCard, customTitle) {
   if (playerName) {
     playerName.textContent = customTitle;
   }
+  schedulePlayerViewSync(playerId, playerCard);
   
   // Save state
   savePlayerState(playerId);
@@ -1861,6 +2559,7 @@ function resetToDefaultTitle(playerId, playerCard) {
   if (playerName) {
     playerName.textContent = `Player ${playerId}`;
   }
+  schedulePlayerViewSync(playerId, playerCard);
   
   // Save state
   savePlayerState(playerId);

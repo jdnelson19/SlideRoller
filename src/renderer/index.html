@@ -10,9 +10,6 @@
   <div class="app-container">
     <div class="menu-bar">
       <h1>Slide Roller</h1>
-      <div class="menu-actions">
-        <button class="menu-btn" id="output-settings-btn">Output Settings</button>
-      </div>
     </div>
     <!-- Players Container -->
     <div class="players-container">
@@ -339,7 +336,36 @@
           </div>
         </div>
       </div>
+
     </div>
+
+    <footer id="global-transition-footer" class="global-transition-footer" hidden>
+      <div class="global-transition-header">
+        <h2>Global Transition</h2>
+        <label class="global-transition-override">
+          <input id="global-transition-enabled" type="checkbox">
+          Enable Override
+        </label>
+      </div>
+      <div class="global-transition-controls">
+        <div class="transition-toggle" aria-label="Global transition type">
+          <button id="global-transition-cut" class="transition-toggle-btn active" data-transition="cut">Cut</button>
+          <button id="global-transition-fade" class="transition-toggle-btn" data-transition="crossfade">Fade</button>
+        </div>
+
+        <div class="duration-group">
+          <label>Fade Time:</label>
+          <input id="global-fade-duration" type="range" min="0.5" max="5" step="0.5" value="1">
+          <span id="global-fade-duration-value" class="duration-value">1.0s</span>
+        </div>
+
+        <div class="timing-group">
+          <label>Duration:</label>
+          <input id="global-display-time" type="range" min="3" max="20" step="1" value="5">
+          <span id="global-display-time-value" class="timing-value">5s</span>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <!-- Color Picker Modal -->
@@ -492,6 +518,7 @@
             <button id="decklink-refresh-btn" class="menu-btn small">Test / Refresh</button>
           </div>
           <div id="decklink-status" class="decklink-status">Not checked yet.</div>
+          <div class="decklink-status">Working Desktop Video Setup version: 15.3</div>
           <div class="decklink-settings">
             <label for="decklink-video-mode">DeckLink Video Mode:</label>
             <select id="decklink-video-mode" class="decklink-video-mode-select"></select>
@@ -502,56 +529,112 @@
     </div>
   </div>
 
+  <div id="multiview-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Multiview Output</h2>
+        <button class="close-btn" id="multiview-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="schedule-field">
+          <label for="multiview-output-select">Output:</label>
+          <select id="multiview-output-select" class="output-select"></select>
+        </div>
+        <div class="schedule-field">
+          <label for="multiview-grid-select">Grid:</label>
+          <select id="multiview-grid-select" class="output-select">
+            <option value="2x2">2 x 2</option>
+            <option value="2x1">2 x 1</option>
+          </select>
+        </div>
+        <p class="multiview-note">Multiview uses a dedicated display output and shows each player preview with its next active schedule run.</p>
+        <div class="schedule-actions">
+          <button id="multiview-disable" class="schedule-clear-btn">Disable</button>
+          <button id="multiview-apply" class="apply-color-btn">Enable Multiview</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Help Modal -->
   <div id="help-modal" class="modal">
     <div class="modal-content help-modal-content">
       <div class="modal-header">
-        <h2>Player Controls Help</h2>
+        <h2>Help</h2>
         <button class="close-btn" id="help-close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="help-section">
-          <h3>Folder & Playback</h3>
-          <ul>
-            <li><strong>Select Folder</strong> — Choose a folder of images for the player.</li>
-            <li><strong>Start</strong> — Begin playback of the selected folder.</li>
-            <li><strong>Stop</strong> — Pause playback.</li>
-          </ul>
+        <div class="help-tabs" role="tablist" aria-label="Help sections">
+          <button id="help-tab-controls" class="help-tab-btn active" role="tab" aria-selected="true">Controls</button>
+          <button id="help-tab-shortcuts" class="help-tab-btn" role="tab" aria-selected="false">Keyboard Shortcuts</button>
         </div>
-        <div class="help-section">
-          <h3>Transitions & Timing</h3>
-          <ul>
-            <li><strong>Transition</strong> — Choose Cut (instant) or Crossfade.</li>
-            <li><strong>Fade</strong> — Crossfade duration (0.5–5s).</li>
-            <li><strong>Display Time</strong> — Time each image stays on screen.</li>
-          </ul>
+
+        <div id="help-controls-section" class="help-section-group active" role="tabpanel">
+          <div class="help-section">
+            <h3>Folder & Playback</h3>
+            <ul>
+              <li><strong>Select Folder</strong> — Choose a folder of images for the player.</li>
+              <li><strong>Start</strong> — Begin playback of the selected folder.</li>
+              <li><strong>Stop</strong> — Pause playback.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Transitions & Timing</h3>
+            <ul>
+              <li><strong>Transition</strong> — Choose Cut (instant) or Crossfade.</li>
+              <li><strong>Fade</strong> — Crossfade duration (0.5-5s).</li>
+              <li><strong>Display Time</strong> — Time each image stays on screen.</li>
+              <li><strong>Global Transition Footer</strong> — Toggle with Cmd+G and optionally override transition settings for all players.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Image Layout</h3>
+            <ul>
+              <li><strong>Scale to Fill</strong> — Crop to fill the frame.</li>
+              <li><strong>Color</strong> — Set a background color.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Output</h3>
+            <ul>
+              <li><strong>Output</strong> — Choose a display.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Schedules</h3>
+            <ul>
+              <li><strong>Add Schedule</strong> — Create as many timed folder switches as you need for each player.</li>
+              <li><strong>Enable schedule</strong> — Activates the selected schedule slot.</li>
+              <li><strong>Days</strong> — Choose which weekdays each scheduled folder switch can run on.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Player Titles</h3>
+            <ul>
+              <li><strong>Double-click player name</strong> — Edit the title inline.</li>
+            </ul>
+          </div>
         </div>
-        <div class="help-section">
-          <h3>Image Layout</h3>
-          <ul>
-            <li><strong>Scale to Fill</strong> — Crop to fill the frame.</li>
-            <li><strong>Color</strong> — Set a background color.</li>
-          </ul>
-        </div>
-        <div class="help-section">
-          <h3>Output</h3>
-          <ul>
-            <li><strong>Output</strong> — Choose a display.</li>
-          </ul>
-        </div>
-        <div class="help-section">
-          <h3>Schedules</h3>
-          <ul>
-            <li><strong>Add Schedule</strong> — Create as many timed folder switches as you need for each player.</li>
-            <li><strong>Enable schedule</strong> — Activates the selected schedule slot.</li>
-            <li><strong>Days</strong> — Choose which weekdays each scheduled folder switch can run on.</li>
-          </ul>
-        </div>
-        <div class="help-section">
-          <h3>Player Titles</h3>
-          <ul>
-            <li><strong>Double‑click player name</strong> — Edit the title inline.</li>
-          </ul>
+
+        <div id="help-shortcuts-section" class="help-section-group" role="tabpanel">
+          <div class="help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+              <li><strong>Cmd+1</strong> — 2 Player layout.</li>
+              <li><strong>Cmd+2</strong> — 4 Player layout.</li>
+              <li><strong>Cmd+3</strong> — 2 x 2 layout.</li>
+              <li><strong>Cmd+4</strong> — 1 x 4 layout.</li>
+              <li><strong>Cmd+D</strong> — Debug.</li>
+              <li><strong>Cmd+E</strong> — Export player configurations.</li>
+              <li><strong>Cmd+F</strong> — Always on Top.</li>
+              <li><strong>Cmd+G</strong> — Global Transition.</li>
+              <li><strong>Cmd+H</strong> — Help.</li>
+              <li><strong>Cmd+O</strong> — Output.</li>
+              <li><strong>Cmd+P</strong> — Stop All Players.</li>
+              <li><strong>Cmd+S</strong> — Schedule.</li>
+              <li><strong>Cmd+T</strong> — Transition.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

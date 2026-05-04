@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiview</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #141414;
+      color: #fff;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    body.grid-2x1 .player-view-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    body.grid-2x1 .player-view-tile:nth-child(n+3) {
+      display: none;
+    }
+
+    .player-view-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      height: calc(100vh - 32px);
+    }
+
+    .player-view-tile {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      background: #1f1f1f;
+      border: 1px solid #2f2f2f;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .player-view-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 38px;
+    }
+
+    .player-view-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .player-view-title {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player-view-schedule {
+      font-size: 12px;
+      color: #9cc2ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player-view-status {
+      font-size: 12px;
+      color: #bdbdbd;
+      text-transform: capitalize;
+      white-space: nowrap;
+    }
+
+    .player-view-preview {
+      position: relative;
+      flex: 0 0 auto;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      margin-top: auto;
+      min-height: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .player-view-image {
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .player-view-image.visible {
+      display: block;
+    }
+
+    .player-view-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #707070;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="player-view-grid">
+    <section class="player-view-tile" data-player-id="1">
+      <div class="player-view-header">
+        <div class="player-view-title-group">
+          <span class="player-view-title">Player 1</span>
+          <span class="player-view-schedule">No active schedule</span>
+        </div>
+        <span class="player-view-status">stopped</span>
+      </div>
+      <div class="player-view-preview">
+        <img class="player-view-image" alt="Player 1 preview">
+        <div class="player-view-placeholder">No output preview</div>
+      </div>
+    </section>
+    <section class="player-view-tile" data-player-id="2">
+      <div class="player-view-header">
+        <div class="player-view-title-group">
+          <span class="player-view-title">Player 2</span>
+          <span class="player-view-schedule">No active schedule</span>
+        </div>
+        <span class="player-view-status">stopped</span>
+      </div>
+      <div class="player-view-preview">
+        <img class="player-view-image" alt="Player 2 preview">
+        <div class="player-view-placeholder">No output preview</div>
+      </div>
+    </section>
+    <section class="player-view-tile" data-player-id="3">
+      <div class="player-view-header">
+        <div class="player-view-title-group">
+          <span class="player-view-title">Player 3</span>
+          <span class="player-view-schedule">No active schedule</span>
+        </div>
+        <span class="player-view-status">stopped</span>
+      </div>
+      <div class="player-view-preview">
+        <img class="player-view-image" alt="Player 3 preview">
+        <div class="player-view-placeholder">No output preview</div>
+      </div>
+    </section>
+    <section class="player-view-tile" data-player-id="4">
+      <div class="player-view-header">
+        <div class="player-view-title-group">
+          <span class="player-view-title">Player 4</span>
+          <span class="player-view-schedule">No active schedule</span>
+        </div>
+        <span class="player-view-status">stopped</span>
+      </div>
+      <div class="player-view-preview">
+        <img class="player-view-image" alt="Player 4 preview">
+        <div class="player-view-placeholder">No output preview</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="player-view.js"></script>
+</body>
+</html>
