@@ -2015,12 +2015,12 @@ function setupOutputSettingsModal() {
 }
 
 function applyPlayerLayout(mode) {
-  const allowedModes = new Set(['two', 'four', 'grid-2x2', 'stack-1x4']);
+  const allowedModes = new Set(['two', 'four']);
   const nextMode = allowedModes.has(mode) ? mode : 'four';
   document.body.classList.toggle('layout-two', nextMode === 'two');
   document.body.classList.toggle('layout-four', nextMode === 'four');
-  document.body.classList.toggle('layout-grid-2x2', nextMode === 'grid-2x2');
-  document.body.classList.toggle('layout-stack-1x4', nextMode === 'stack-1x4');
+  document.body.classList.remove('layout-grid-2x2');
+  document.body.classList.remove('layout-stack-1x4');
   localStorage.setItem('playerLayoutMode', nextMode);
   ipcRenderer.send('set-layout-min-size', { mode: nextMode });
   updateTabPanelMinHeights();

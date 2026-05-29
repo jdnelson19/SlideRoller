@@ -787,24 +787,6 @@ function createWindow() {
                   mainWindow.webContents.send('set-player-layout', { mode: 'four' });
                 }
               }
-            },
-            {
-              label: '2 x 2',
-              accelerator: 'CommandOrControl+3',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('set-player-layout', { mode: 'grid-2x2' });
-                }
-              }
-            },
-            {
-              label: '1 x 4',
-              accelerator: 'CommandOrControl+4',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('set-player-layout', { mode: 'stack-1x4' });
-                }
-              }
             }
           ]
         },
@@ -1140,9 +1122,7 @@ ipcMain.on('set-layout-min-size', (event, { mode }) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const MIN_SIZES = {
     four: [1100, 680],
-    two: [700, 680],
-    'grid-2x2': [600, 480],
-    'stack-1x4': [600, 420]
+    two: [700, 680]
   };
   const [minW, minH] = MIN_SIZES[mode] || [1100, 680];
   mainWindow.setMinimumSize(minW, minH);
