@@ -52,7 +52,7 @@
       "gatekeeperAssess": false,
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
-      "identity": "${env.CSC_NAME}",
+      "identity": "Developer ID Application",
       "target": [
         "dmg",
         "zip"
