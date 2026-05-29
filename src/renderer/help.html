@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide Roller Help</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .help-shell {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+
+    .help-tabs {
+      display: inline-flex;
+      gap: 8px;
+      background: #101010;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid #2d2d2d;
+      width: fit-content;
+    }
+
+    .help-tab {
+      border: 1px solid transparent;
+      background: transparent;
+      color: #c9c9c9;
+      border-radius: 7px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .help-tab.active {
+      color: #fff;
+      border-color: #3a3a3a;
+      background: #2a2a2a;
+    }
+
+    .help-panel {
+      display: none;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 18px;
+      gap: 14px;
+      flex-direction: column;
+    }
+
+    .help-panel.active {
+      display: flex;
+    }
+
+    .help-section h2 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .help-section ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: #dadada;
+      line-height: 1.35;
+    }
+
+    strong {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="help-shell">
+    <h1>Slide Roller Help</h1>
+
+    <div class="help-tabs" role="tablist" aria-label="Help sections">
+      <button id="tab-controls" class="help-tab active" role="tab" aria-selected="true">Controls</button>
+      <button id="tab-shortcuts" class="help-tab" role="tab" aria-selected="false">Keyboard Shortcuts</button>
+    </div>
+
+    <section id="panel-controls" class="help-panel active" role="tabpanel">
+      <div class="help-section">
+        <h2>Folder and Playback</h2>
+        <ul>
+          <li><strong>Select Folder</strong> - Choose a folder of images for the player.</li>
+          <li><strong>Start</strong> - Begin playback of the selected folder.</li>
+          <li><strong>Stop</strong> - Pause playback.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h2>Transitions and Timing</h2>
+        <ul>
+          <li><strong>Transition</strong> - Choose Cut (instant) or Crossfade.</li>
+          <li><strong>Fade</strong> - Crossfade duration (0.5-5s).</li>
+          <li><strong>Display Time</strong> - Time each image stays on screen.</li>
+          <li><strong>Global Transition Footer</strong> - Toggle with Cmd+G and optionally override transition settings for all players.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h2>Image Layout</h2>
+        <ul>
+          <li><strong>Scale to Fill</strong> - Crop to fill the frame.</li>
+          <li><strong>Color</strong> - Set a background color.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h2>Output and Schedules</h2>
+        <ul>
+          <li><strong>Output</strong> - Choose a display output for each player.</li>
+          <li><strong>Add Schedule</strong> - Create timed folder switches for each player.</li>
+          <li><strong>Days</strong> - Choose weekdays each scheduled folder switch can run on.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h2>Player Titles</h2>
+        <ul>
+          <li><strong>Double-click player name</strong> - Edit the title inline.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="panel-shortcuts" class="help-panel" role="tabpanel">
+      <div class="help-section">
+        <h2>Keyboard Shortcuts</h2>
+        <ul>
+          <li><strong>Cmd+1</strong> - 2 Player layout.</li>
+          <li><strong>Cmd+2</strong> - 4 Player layout.</li>
+          <li><strong>Cmd+3</strong> - 2 x 2 layout.</li>
+          <li><strong>Cmd+4</strong> - 1 x 4 layout.</li>
+          <li><strong>Cmd+D</strong> - Debug window.</li>
+          <li><strong>Cmd+E</strong> - Export player configurations.</li>
+          <li><strong>Cmd+F</strong> - Toggle Always on Top.</li>
+          <li><strong>Cmd+G</strong> - Toggle Global Transition footer.</li>
+          <li><strong>Cmd+H</strong> - Help window.</li>
+          <li><strong>Cmd+O</strong> - Output tab.</li>
+          <li><strong>Cmd+P</strong> - Stop All Players.</li>
+          <li><strong>Cmd+S</strong> - Schedule tab.</li>
+          <li><strong>Cmd+T</strong> - Transition tab.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const tabControls = document.getElementById('tab-controls');
+    const tabShortcuts = document.getElementById('tab-shortcuts');
+    const panelControls = document.getElementById('panel-controls');
+    const panelShortcuts = document.getElementById('panel-shortcuts');
+
+    function setTab(mode) {
+      const shortcutsActive = mode === 'shortcuts';
+      tabControls.classList.toggle('active', !shortcutsActive);
+      tabShortcuts.classList.toggle('active', shortcutsActive);
+      tabControls.setAttribute('aria-selected', shortcutsActive ? 'false' : 'true');
+      tabShortcuts.setAttribute('aria-selected', shortcutsActive ? 'true' : 'false');
+      panelControls.classList.toggle('active', !shortcutsActive);
+      panelShortcuts.classList.toggle('active', shortcutsActive);
+    }
+
+    tabControls.addEventListener('click', () => setTab('controls'));
+    tabShortcuts.addEventListener('click', () => setTab('shortcuts'));
+  </script>
+</body>
+</html>

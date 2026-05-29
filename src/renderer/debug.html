@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide Roller Debug Logs</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #121212;
+      color: #e8e8e8;
+      font-family: Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid #2c2c2c;
+      background: #1b1b1b;
+    }
+
+    .toolbar button {
+      border: 1px solid #3a3a3a;
+      background: #2a2a2a;
+      color: #fff;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover {
+      background: #333;
+    }
+
+    .toolbar .status {
+      margin-left: auto;
+      color: #9a9a9a;
+      font-size: 12px;
+    }
+
+    #log-output {
+      white-space: pre-wrap;
+      padding: 12px;
+      overflow: auto;
+      flex: 1;
+      line-height: 1.35;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="clear-btn">Clear View</button>
+    <button id="copy-btn">Copy All</button>
+    <button id="pause-btn">Pause</button>
+    <div class="status" id="status-text">Live</div>
+  </div>
+  <div id="log-output"></div>
+
+  <script src="debug.js"></script>
+</body>
+</html>

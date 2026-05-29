@@ -1,0 +1,7 @@
+node_modules/
+dist/
+build/
+Blackmagic DeckLink SDK 15.3/
+*.log
+.DS_Store
+.env
