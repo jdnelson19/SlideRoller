@@ -2,10 +2,42 @@ const { ipcRenderer } = require('electron');
 
 // Player state management
 const players = {
-  1: { images: [], currentIndex: 0, isPlaying: false, folderPath: null, intervalId: null, currentImageIndex: 0, isFirstImage: true },
-  2: { images: [], currentIndex: 0, isPlaying: false, folderPath: null, intervalId: null, currentImageIndex: 0, isFirstImage: true },
-  3: { images: [], currentIndex: 0, isPlaying: false, folderPath: null, intervalId: null, currentImageIndex: 0, isFirstImage: true },
-  4: { images: [], currentIndex: 0, isPlaying: false, folderPath: null, intervalId: null, currentImageIndex: 0, isFirstImage: true }
+  1: {
+    images: [],
+    currentIndex: 0,
+    isPlaying: false,
+    folderPath: null,
+    intervalId: null,
+    currentImageIndex: 0,
+    isFirstImage: true,
+  },
+  2: {
+    images: [],
+    currentIndex: 0,
+    isPlaying: false,
+    folderPath: null,
+    intervalId: null,
+    currentImageIndex: 0,
+    isFirstImage: true,
+  },
+  3: {
+    images: [],
+    currentIndex: 0,
+    isPlaying: false,
+    folderPath: null,
+    intervalId: null,
+    currentImageIndex: 0,
+    isFirstImage: true,
+  },
+  4: {
+    images: [],
+    currentIndex: 0,
+    isPlaying: false,
+    folderPath: null,
+    intervalId: null,
+    currentImageIndex: 0,
+    isFirstImage: true,
+  },
 };
 
 const DECKLINK_VIDEO_MODES = [
@@ -18,7 +50,7 @@ const DECKLINK_VIDEO_MODES = [
   { value: '1080p29.97', label: '1080p 29.97' },
   { value: '1080p25', label: '1080p 25' },
   { value: '1080p24', label: '1080p 24' },
-  { value: '1080p23.98', label: '1080p 23.98' }
+  { value: '1080p23.98', label: '1080p 23.98' },
 ];
 
 const DEFAULT_DECKLINK_VIDEO_MODE = '1080p59.94';
@@ -27,14 +59,14 @@ const MULTIVIEW_STATE_STORAGE_KEY = 'multiviewState';
 
 const multiviewState = {
   outputSelection: '',
-  gridMode: '2x2'
+  gridMode: '2x2',
 };
 
 const multiviewUi = {
   modal: null,
   outputModal: null,
   outputSelect: null,
-  gridSelect: null
+  gridSelect: null,
 };
 
 function formatDebugArg(value) {
@@ -56,7 +88,7 @@ function sendDebugLog(level, args) {
   ipcRenderer.send('debug-log', {
     level,
     source: 'renderer',
-    message
+    message,
   });
 }
 
@@ -68,21 +100,21 @@ function setupDebugLogBridge() {
     log: console.log.bind(console),
     info: console.info.bind(console),
     warn: console.warn.bind(console),
-    error: console.error.bind(console)
+    error: console.error.bind(console),
   };
 
-  ['log', 'info', 'warn', 'error'].forEach(level => {
+  ['log', 'info', 'warn', 'error'].forEach((level) => {
     console[level] = (...args) => {
       originalConsole[level](...args);
       sendDebugLog(level, args);
     };
   });
 
-  window.addEventListener('error', event => {
+  window.addEventListener('error', (event) => {
     sendDebugLog('error', [`Uncaught error: ${event.message}`, event.error || '']);
   });
 
-  window.addEventListener('unhandledrejection', event => {
+  window.addEventListener('unhandledrejection', (event) => {
     sendDebugLog('error', ['Unhandled promise rejection:', event.reason || 'Unknown reason']);
   });
 }
@@ -107,12 +139,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.requestAnimationFrame(updateTabPanelMinHeights);
   });
   startScheduleChecker();
-  
+
   // Listen for folder updates from file watcher
   ipcRenderer.on('folder-updated', (event, { playerId, images }) => {
     handleFolderUpdate(playerId, images);
   });
-  
+
   ipcRenderer.on('displays-changed', async () => {
     await loadOutputOptions();
     await populateMultiviewOutputOptions();
@@ -148,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ipcRenderer.on('set-schedule-sort', (event, { sort }) => {
     scheduleSortMode = sort === 'name' ? 'name' : 'time';
     localStorage.setItem('scheduleSortMode', scheduleSortMode);
-    [1, 2, 3, 4].forEach(id => {
+    [1, 2, 3, 4].forEach((id) => {
       const card = document.querySelector(`[data-player-id="${id}"]`);
       if (card) renderScheduleList(id);
     });
@@ -157,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ipcRenderer.on('toggle-schedule-sort', () => {
     scheduleSortMode = scheduleSortMode === 'name' ? 'time' : 'name';
     localStorage.setItem('scheduleSortMode', scheduleSortMode);
-    [1, 2, 3, 4].forEach(id => {
+    [1, 2, 3, 4].forEach((id) => {
       const card = document.querySelector(`[data-player-id="${id}"]`);
       if (card) renderScheduleList(id);
     });
@@ -179,12 +211,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     updatePlayerStatus(playerCard, 'lost-output');
-    showPlayerNotification(playerCard, payload && payload.reason ? payload.reason : 'Output lost', 'warning');
+    showPlayerNotification(
+      playerCard,
+      payload && payload.reason ? payload.reason : 'Output lost',
+      'warning'
+    );
   });
 
   ipcRenderer.on('player-configurations-imported', (event, payload) => {
     const importedFrom = payload && payload.filePath ? `\n\nSource: ${payload.filePath}` : '';
-    alert(`Player configurations were imported. The app will now reload to apply them.${importedFrom}`);
+    alert(
+      `Player configurations were imported. The app will now reload to apply them.${importedFrom}`
+    );
     window.location.reload();
   });
 
@@ -227,17 +265,22 @@ function setupAppScaling() {
 }
 function getPlayerViewPayload(playerId, playerCard) {
   const previewImages = Array.from(playerCard.querySelectorAll('.preview-image'));
-  const visibleImage = previewImages.find(image => image.classList.contains('visible'))
-    || previewImages.find(image => Boolean(image.currentSrc || image.src || image.getAttribute('src')))
-    || previewImages[0]
-    || null;
+  const visibleImage =
+    previewImages.find((image) => image.classList.contains('visible')) ||
+    previewImages.find((image) =>
+      Boolean(image.currentSrc || image.src || image.getAttribute('src'))
+    ) ||
+    previewImages[0] ||
+    null;
   const playerName = playerCard.querySelector('.player-name');
   const statusLed = playerCard.querySelector('.status-led');
   const scaleFillCheckbox = playerCard.querySelector('.scale-fill-checkbox');
-  const imageSrc = visibleImage ? (visibleImage.currentSrc || visibleImage.src || visibleImage.getAttribute('src') || '') : '';
+  const imageSrc = visibleImage
+    ? visibleImage.currentSrc || visibleImage.src || visibleImage.getAttribute('src') || ''
+    : '';
 
   const nextSchedule = getNextScheduleInfo(playerId);
-  
+
   // Extract status from LED classes
   let status = 'stopped';
   if (statusLed) {
@@ -256,7 +299,7 @@ function getPlayerViewPayload(playerId, playerCard) {
     objectFit: scaleFillCheckbox && scaleFillCheckbox.checked ? 'cover' : 'contain',
     status,
     placeholder: imageSrc ? '' : 'No output preview',
-    scheduleText: nextSchedule.label
+    scheduleText: nextSchedule.label,
   };
 }
 
@@ -320,7 +363,8 @@ function loadMultiviewState() {
     if (!raw) return;
     const saved = JSON.parse(raw);
     if (!saved || typeof saved !== 'object') return;
-    multiviewState.outputSelection = typeof saved.outputSelection === 'string' ? saved.outputSelection : '';
+    multiviewState.outputSelection =
+      typeof saved.outputSelection === 'string' ? saved.outputSelection : '';
     multiviewState.gridMode = saved.gridMode === '2x1' ? '2x1' : '2x2';
   } catch (error) {
     console.error('Failed to load multiview state:', error);
@@ -388,7 +432,7 @@ function getEffectiveTransitionSettings(playerCard) {
   return {
     transitionType: playerCard.querySelector('.transition-type').value,
     duration: parseFloat(playerCard.querySelector('.duration-slider').value),
-    displayTime: parseInt(playerCard.querySelector('.timing-slider').value, 10)
+    displayTime: parseInt(playerCard.querySelector('.timing-slider').value, 10),
   };
 }
 
@@ -434,7 +478,15 @@ function resetPlayerToDefaults(playerId) {
   const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
   if (!playerCard) return;
 
-  players[playerId] = { images: [], currentIndex: 0, isPlaying: false, folderPath: null, intervalId: null, currentImageIndex: 0, isFirstImage: true };
+  players[playerId] = {
+    images: [],
+    currentIndex: 0,
+    isPlaying: false,
+    folderPath: null,
+    intervalId: null,
+    currentImageIndex: 0,
+    isFirstImage: true,
+  };
 
   // Reset folder UI
   const folderPath = playerCard.querySelector('.folder-path');
@@ -445,7 +497,7 @@ function resetPlayerToDefaults(playerId) {
 
   // Reset preview images and placeholder
   const previewImages = playerCard.querySelectorAll('.preview-image');
-  previewImages.forEach(img => {
+  previewImages.forEach((img) => {
     img.src = '';
     img.classList.remove('visible', 'fade');
   });
@@ -512,7 +564,7 @@ const SCHEDULE_DAY_NAMES = {
   3: 'Wednesday',
   4: 'Thursday',
   5: 'Friday',
-  6: 'Saturday'
+  6: 'Saturday',
 };
 
 function createDefaultSchedule() {
@@ -521,9 +573,13 @@ function createDefaultSchedule() {
 
 function normalizeSchedule(item = {}) {
   const normalizedDays = Array.isArray(item.daysOfWeek)
-    ? Array.from(new Set(item.daysOfWeek
-      .map(day => Number.parseInt(day, 10))
-      .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)))
+    ? Array.from(
+        new Set(
+          item.daysOfWeek
+            .map((day) => Number.parseInt(day, 10))
+            .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+        )
+      )
     : [...ALL_SCHEDULE_DAYS];
 
   return {
@@ -532,20 +588,20 @@ function normalizeSchedule(item = {}) {
     folderPath: item.folderPath || '',
     lastRunDate: item.lastRunDate || '',
     enabled: !!item.enabled,
-    daysOfWeek: Array.isArray(item.daysOfWeek) ? normalizedDays : [...ALL_SCHEDULE_DAYS]
+    daysOfWeek: Array.isArray(item.daysOfWeek) ? normalizedDays : [...ALL_SCHEDULE_DAYS],
   };
 }
 
 function getSelectedScheduleDays() {
   return Array.from(document.querySelectorAll('.schedule-days input:checked'))
-    .map(input => Number.parseInt(input.value, 10))
-    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+    .map((input) => Number.parseInt(input.value, 10))
+    .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
     .sort((left, right) => left - right);
 }
 
 function setSelectedScheduleDays(daysOfWeek) {
   const selected = new Set(normalizeSchedule({ daysOfWeek }).daysOfWeek);
-  document.querySelectorAll('.schedule-days input').forEach(input => {
+  document.querySelectorAll('.schedule-days input').forEach((input) => {
     const day = Number.parseInt(input.value, 10);
     input.checked = selected.has(day);
   });
@@ -557,7 +613,9 @@ function formatScheduleDays(daysOfWeek) {
   if (normalized.length === ALL_SCHEDULE_DAYS.length) return 'Every day';
   if (normalized.length === 1) return SCHEDULE_DAY_NAMES[normalized[0]];
   const selected = new Set(normalized);
-  return SCHEDULE_DAY_ORDER.filter(d => selected.has(d)).map(d => SCHEDULE_DAY_CODES[d]).join('');
+  return SCHEDULE_DAY_ORDER.filter((d) => selected.has(d))
+    .map((d) => SCHEDULE_DAY_CODES[d])
+    .join('');
 }
 
 let scheduleSortMode = localStorage.getItem('scheduleSortMode') || 'time';
@@ -568,7 +626,7 @@ function getScheduleDaySortRank(daysOfWeek) {
 
   const orderIndex = new Map(SCHEDULE_DAY_ORDER.map((day, index) => [day, index]));
   let rank = 999;
-  normalized.forEach(day => {
+  normalized.forEach((day) => {
     const index = orderIndex.get(day);
     if (Number.isInteger(index)) {
       rank = Math.min(rank, index);
@@ -584,7 +642,7 @@ function getScheduleTimeSortValue(time) {
   const hour = Number.parseInt(hourStr, 10);
   const minute = Number.parseInt(minuteStr, 10);
   if (!Number.isInteger(hour) || !Number.isInteger(minute)) return 9999;
-  return (hour * 60) + minute;
+  return hour * 60 + minute;
 }
 
 function getSortedScheduleEntries(playerId) {
@@ -592,7 +650,7 @@ function getSortedScheduleEntries(playerId) {
   const entries = schedules.map((schedule, index) => ({
     schedule,
     slot: index + 1,
-    hasConfig: !!(schedule && schedule.time && schedule.folderPath)
+    hasConfig: !!(schedule && schedule.time && schedule.folderPath),
   }));
 
   entries.sort((left, right) => {
@@ -632,7 +690,12 @@ function getNextScheduleInfo(playerId) {
 
   schedules.forEach((schedule, index) => {
     const normalized = normalizeSchedule(schedule);
-    if (!normalized.enabled || !normalized.time || !normalized.folderPath || normalized.daysOfWeek.length === 0) {
+    if (
+      !normalized.enabled ||
+      !normalized.time ||
+      !normalized.folderPath ||
+      normalized.daysOfWeek.length === 0
+    ) {
       return;
     }
 
@@ -654,7 +717,7 @@ function getNextScheduleInfo(playerId) {
         nextRun = {
           date: candidate,
           time: normalized.time,
-          name: normalized.name || `Schedule ${index + 1}`
+          name: normalized.name || `Schedule ${index + 1}`,
         };
       }
       break;
@@ -665,7 +728,7 @@ function getNextScheduleInfo(playerId) {
     return {
       name: '',
       time: '',
-      label: 'No active schedule'
+      label: 'No active schedule',
     };
   }
 
@@ -678,7 +741,7 @@ function getNextScheduleInfo(playerId) {
   return {
     name: nextRun.name,
     time: timeLabel,
-    label: `${nextRun.name} · ${timeLabel}`
+    label: `${nextRun.name} · ${timeLabel}`,
   };
 }
 
@@ -690,9 +753,9 @@ const scheduleState = {
     1: [createDefaultSchedule()],
     2: [createDefaultSchedule()],
     3: [createDefaultSchedule()],
-    4: [createDefaultSchedule()]
+    4: [createDefaultSchedule()],
   },
-  checkerId: null
+  checkerId: null,
 };
 
 function setupScheduleModal() {
@@ -702,7 +765,7 @@ function setupScheduleModal() {
   const clearBtn = document.getElementById('schedule-clear');
   const timeControls = modal.querySelectorAll('.time-adjust');
 
-  document.addEventListener('click', event => {
+  document.addEventListener('click', (event) => {
     const scheduleButton = event.target.closest('.schedule-btn');
     if (scheduleButton) {
       const slot = parseInt(scheduleButton.dataset.scheduleSlot, 10);
@@ -718,7 +781,7 @@ function setupScheduleModal() {
     }
   });
 
-  document.addEventListener('contextmenu', event => {
+  document.addEventListener('contextmenu', (event) => {
     const scheduleButton = event.target.closest('.schedule-btn');
     if (!scheduleButton) return;
 
@@ -756,16 +819,17 @@ function setupScheduleModal() {
     }
   });
 
-  timeControls.forEach(btn => {
+  timeControls.forEach((btn) => {
     btn.addEventListener('click', () => adjustScheduleTime(btn.dataset.timeAction));
   });
 
-  modal.addEventListener('keydown', event => {
-    const isSelectAll = event.metaKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'a';
+  modal.addEventListener('keydown', (event) => {
+    const isSelectAll =
+      event.metaKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'a';
     if (!isSelectAll) return;
 
     event.preventDefault();
-    document.querySelectorAll('.schedule-days input').forEach(input => {
+    document.querySelectorAll('.schedule-days input').forEach((input) => {
       input.checked = true;
     });
   });
@@ -850,7 +914,7 @@ function saveScheduleFromModal() {
     folderPath: normalizedFolderPath,
     lastRunDate: previousSchedule.lastRunDate || '',
     enabled: !!enabledCheckbox.checked,
-    daysOfWeek
+    daysOfWeek,
   };
 
   persistSchedules(playerId);
@@ -885,7 +949,7 @@ function toggleScheduleEnabled(playerId, slot) {
 function persistSchedules(playerId) {
   const schedules = scheduleState.schedulesByPlayer[playerId];
   localStorage.setItem(`player${playerId}Schedules`, JSON.stringify(schedules));
-  ipcRenderer.invoke('set-player-schedules', { playerId, schedules }).catch(error => {
+  ipcRenderer.invoke('set-player-schedules', { playerId, schedules }).catch((error) => {
     console.error(`Failed to persist schedules for player ${playerId}:`, error);
   });
 }
@@ -904,9 +968,11 @@ async function loadAllSchedules() {
       if (local) {
         try {
           stored = JSON.parse(local);
-          ipcRenderer.invoke('set-player-schedules', { playerId, schedules: stored }).catch(error => {
-            console.error(`Failed to migrate schedules for player ${playerId}:`, error);
-          });
+          ipcRenderer
+            .invoke('set-player-schedules', { playerId, schedules: stored })
+            .catch((error) => {
+              console.error(`Failed to migrate schedules for player ${playerId}:`, error);
+            });
         } catch (error) {
           console.error(`Failed to parse localStorage schedules for player ${playerId}:`, error);
         }
@@ -917,7 +983,7 @@ async function loadAllSchedules() {
       try {
         const parsed = Array.isArray(stored) ? stored : JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          scheduleState.schedulesByPlayer[playerId] = parsed.map(item => normalizeSchedule(item));
+          scheduleState.schedulesByPlayer[playerId] = parsed.map((item) => normalizeSchedule(item));
         }
       } catch (error) {
         console.error(`Failed to load schedules for player ${playerId}:`, error);
@@ -937,7 +1003,7 @@ function renderScheduleList(playerId) {
   const sortedEntries = getSortedScheduleEntries(playerId);
   container.replaceChildren();
 
-  sortedEntries.forEach(entry => {
+  sortedEntries.forEach((entry) => {
     const { schedule, slot } = entry;
     const hasConfig = schedule.time && schedule.folderPath;
     const isActive = hasConfig && schedule.enabled;
@@ -951,7 +1017,7 @@ function renderScheduleList(playerId) {
     scheduleButton.classList.toggle('active', isActive);
     const displayName = schedule.name || `Schedule ${slot}`;
     const folderName = schedule.folderPath
-      ? (schedule.folderPath.replace(/\/+$/, '').split('/').pop() || schedule.folderPath)
+      ? schedule.folderPath.replace(/\/+$/, '').split('/').pop() || schedule.folderPath
       : '';
     const metaText = hasConfig
       ? `${formatTimeLabel(schedule.time)} ${daySummary}${folderName ? ' · ' + folderName : ''}`
@@ -1014,9 +1080,9 @@ function updateScheduleIndicator(playerId) {
   if (!badge) return;
 
   const schedules = scheduleState.schedulesByPlayer[playerId] || [];
-  const activeScheduleCount = schedules.filter(schedule => (
-    schedule && schedule.enabled && schedule.time && schedule.folderPath
-  )).length;
+  const activeScheduleCount = schedules.filter(
+    (schedule) => schedule && schedule.enabled && schedule.time && schedule.folderPath
+  ).length;
   const hasActiveSchedule = activeScheduleCount > 0;
 
   badge.classList.toggle('active', hasActiveSchedule);
@@ -1039,7 +1105,7 @@ function checkSchedules() {
   const today = now.toISOString().slice(0, 10);
   const currentDay = now.getDay();
 
-  Object.keys(scheduleState.schedulesByPlayer).forEach(playerKey => {
+  Object.keys(scheduleState.schedulesByPlayer).forEach((playerKey) => {
     const playerId = parseInt(playerKey, 10);
     const schedules = scheduleState.schedulesByPlayer[playerId];
     schedules.forEach(async (schedule, index) => {
@@ -1178,7 +1244,7 @@ async function switchPlayerFolder(playerId, folderPath) {
 function initializePlayers() {
   for (let i = 1; i <= 4; i++) {
     const playerCard = document.querySelector(`[data-player-id="${i}"]`);
-    
+
     if (!playerCard) {
       console.error(`Player card ${i} not found`);
       continue;
@@ -1217,7 +1283,7 @@ function initializePlayers() {
     // Transition toggle buttons
     const transitionToggleButtons = playerCard.querySelectorAll('.transition-toggle-btn');
     if (transitionToggleButtons.length > 0 && transitionType) {
-      transitionToggleButtons.forEach(btn => {
+      transitionToggleButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
           const nextValue = btn.dataset.transition || 'cut';
           transitionType.value = nextValue;
@@ -1253,10 +1319,10 @@ function initializePlayers() {
     if (scaleCheckbox) {
       scaleCheckbox.addEventListener('change', (e) => {
         const previewImages = playerCard.querySelectorAll('.preview-image');
-        previewImages.forEach(img => {
+        previewImages.forEach((img) => {
           img.style.objectFit = e.target.checked ? 'cover' : 'contain';
         });
-        
+
         savePlayerState(i);
       });
     } else {
@@ -1282,7 +1348,7 @@ function initializePlayers() {
         }
       });
     }
-    
+
     // Auto-start checkbox
     const autoStartCheckbox = playerCard.querySelector('.auto-start-checkbox');
     if (autoStartCheckbox) {
@@ -1292,7 +1358,7 @@ function initializePlayers() {
     }
 
     setupPlayerTabs(playerCard);
-    
+
     // Double-click on player name to edit title inline
     const playerName = playerCard.querySelector('.player-name');
     if (playerName) {
@@ -1305,7 +1371,7 @@ function initializePlayers() {
 
 async function selectFolder(playerId, playerCard) {
   const result = await ipcRenderer.invoke('select-folder', playerId);
-  
+
   if (result) {
     players[playerId].images = result.images;
     players[playerId].currentIndex = 0;
@@ -1323,13 +1389,13 @@ async function selectFolder(playerId, playerCard) {
     if (result.images.length > 0) {
       const previewImage = playerCard.querySelector('.preview-image-1');
       const placeholder = playerCard.querySelector('.preview-placeholder');
-      
+
       previewImage.src = `file://${result.images[0]}`;
       previewImage.classList.add('visible');
       placeholder.style.display = 'none';
     }
     schedulePlayerViewSync(playerId, playerCard);
-    
+
     // Save state
     savePlayerState(playerId);
   }
@@ -1337,7 +1403,7 @@ async function selectFolder(playerId, playerCard) {
 
 function startPlayer(playerId, playerCard) {
   const player = players[playerId];
-  
+
   if (player.images.length === 0) return;
 
   player.isPlaying = true;
@@ -1354,10 +1420,10 @@ function startPlayer(playerId, playerCard) {
 
 function stopPlayer(playerId, playerCard) {
   const player = players[playerId];
-  
+
   player.isPlaying = false;
-  player.isFirstImage = true;  // Reset for next playback
-  
+  player.isFirstImage = true; // Reset for next playback
+
   if (player.intervalId) {
     clearTimeout(player.intervalId);
     player.intervalId = null;
@@ -1381,25 +1447,25 @@ function stopAllPlayers() {
 function handleFolderUpdate(playerId, newImages) {
   const player = players[playerId];
   const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
-  
+
   if (!playerCard) return;
-  
+
   const oldImageCount = player.images.length;
   const newImageCount = newImages.length;
-  
+
   // Update images list
   player.images = newImages;
-  
+
   // If currently playing, adjust currentIndex if needed
   if (player.isPlaying && player.currentIndex >= newImages.length) {
     player.currentIndex = Math.max(0, newImages.length - 1);
   }
-  
+
   // Update UI
   if (!player.isPlaying) {
     setPlayToggleState(playerCard, false, newImages.length > 0);
   }
-  
+
   // Show notification if images were added or removed
   if (newImageCount > oldImageCount) {
     console.log(`Player ${playerId}: ${newImageCount - oldImageCount} new image(s) added`);
@@ -1408,13 +1474,13 @@ function handleFolderUpdate(playerId, newImages) {
     console.log(`Player ${playerId}: ${oldImageCount - newImageCount} image(s) removed`);
     showPlayerNotification(playerCard, `-${oldImageCount - newImageCount} image(s)`, 'warning');
   }
-  
+
   // Update preview if not playing and we have images
   if (!player.isPlaying && newImages.length > 0) {
     const previewImage = playerCard.querySelector('.preview-image-1');
     const placeholder = playerCard.querySelector('.preview-placeholder');
     const currentImagePath = newImages[Math.min(player.currentIndex, newImages.length - 1)];
-    
+
     previewImage.src = `file://${currentImagePath}`;
     previewImage.classList.add('visible');
     placeholder.style.display = 'none';
@@ -1441,10 +1507,10 @@ function showPlayerNotification(playerCard, message, type = 'info') {
     z-index: 1000;
     animation: slideInRight 0.3s ease-out;
   `;
-  
+
   playerCard.style.position = 'relative';
   playerCard.appendChild(notification);
-  
+
   // Remove after 3 seconds
   setTimeout(() => {
     notification.style.animation = 'slideOutRight 0.3s ease-in';
@@ -1454,7 +1520,7 @@ function showPlayerNotification(playerCard, message, type = 'info') {
 
 function playNextImage(playerId, playerCard) {
   const player = players[playerId];
-  
+
   if (!player.isPlaying || player.images.length === 0) return;
 
   const imagePath = player.images[player.currentIndex];
@@ -1485,20 +1551,20 @@ function playNextImage(playerId, playerCard) {
         // Set the transition duration dynamically
         nextImage.style.transitionDuration = `${duration}s`;
         currentImage.style.transitionDuration = `${duration}s`;
-        
+
         // Force reflow
         void nextImage.offsetHeight;
-        
+
         // Use requestAnimationFrame to ensure smooth transition
         requestAnimationFrame(() => {
           // Add fade class and toggle visibility
           currentImage.classList.add('fade');
           nextImage.classList.add('fade');
-          
+
           requestAnimationFrame(() => {
             currentImage.classList.remove('visible');
             nextImage.classList.add('visible');
-            
+
             // Update index after transition completes
             setTimeout(() => {
               player.currentImageIndex = nextImageIndex;
@@ -1506,11 +1572,11 @@ function playNextImage(playerId, playerCard) {
           });
         });
       };
-      
+
       // Ensure next image starts hidden
       nextImage.classList.remove('visible', 'fade');
       nextImage.src = `file://${imagePath}`;
-      
+
       // Handle both onload (new image) and already loaded (cached image)
       if (nextImage.complete && nextImage.naturalHeight !== 0) {
         performCrossfade();
@@ -1538,7 +1604,7 @@ function playNextImage(playerId, playerCard) {
     imagePath,
     transition: transitionType,
     duration,
-    scaleFill
+    scaleFill,
   });
 
   // Move to next image
@@ -1557,7 +1623,7 @@ function updatePlayerStatus(playerCard, status) {
 
   const label = status
     .split('-')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
   if (overlay) {
     overlay.className = `status-indicator-overlay ${status}`;
@@ -1591,16 +1657,16 @@ function setupPlayerTabs(playerCard) {
   const tabPanels = playerCard.querySelectorAll('.tab-panel');
   if (tabButtons.length === 0 || tabPanels.length === 0) return;
 
-  tabButtons.forEach(button => {
+  tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const tabName = button.dataset.tab;
-      tabButtons.forEach(btn => {
+      tabButtons.forEach((btn) => {
         const isActive = btn === button;
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
 
-      tabPanels.forEach(panel => {
+      tabPanels.forEach((panel) => {
         panel.classList.toggle('active', panel.dataset.panel === tabName);
       });
 
@@ -1613,17 +1679,17 @@ function setGlobalTab(tabName) {
   const allowedTabs = new Set(['transition', 'schedule', 'output']);
   const targetTab = allowedTabs.has(tabName) ? tabName : 'transition';
 
-  document.querySelectorAll('.player-card').forEach(playerCard => {
+  document.querySelectorAll('.player-card').forEach((playerCard) => {
     const tabButtons = playerCard.querySelectorAll('.tab-btn');
     const tabPanels = playerCard.querySelectorAll('.tab-panel');
 
-    tabButtons.forEach(button => {
+    tabButtons.forEach((button) => {
       const isActive = button.dataset.tab === targetTab;
       button.classList.toggle('active', isActive);
       button.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
-    tabPanels.forEach(panel => {
+    tabPanels.forEach((panel) => {
       panel.classList.toggle('active', panel.dataset.panel === targetTab);
     });
   });
@@ -1633,13 +1699,13 @@ function setGlobalTab(tabName) {
 
 function syncTransitionToggle(playerCard, transitionType) {
   const transitionToggleButtons = playerCard.querySelectorAll('.transition-toggle-btn');
-  transitionToggleButtons.forEach(btn => {
+  transitionToggleButtons.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.transition === transitionType);
   });
 }
 
 function updateTabPanelMinHeights() {
-  document.querySelectorAll('.player-card').forEach(card => {
+  document.querySelectorAll('.player-card').forEach((card) => {
     const panels = card.querySelectorAll('.tab-panel');
     if (panels.length === 0) return;
 
@@ -1652,7 +1718,7 @@ function updateTabPanelMinHeights() {
       maxHeight = Math.max(maxHeight, activePanel.getBoundingClientRect().height);
     }
 
-    panels.forEach(panel => {
+    panels.forEach((panel) => {
       if (panel === activePanel) return;
       panel.classList.add('measuring');
       maxHeight = Math.max(maxHeight, panel.getBoundingClientRect().height);
@@ -1668,7 +1734,7 @@ function updateTabPanelMinHeights() {
 async function loadOutputOptions() {
   const playerOutputSelects = document.querySelectorAll('.player-card .output-select');
   const previousSelections = new Map();
-  playerOutputSelects.forEach(select => {
+  playerOutputSelects.forEach((select) => {
     const playerId = select.closest('.player-card')?.dataset.playerId;
     if (playerId) {
       previousSelections.set(playerId, select.value);
@@ -1686,20 +1752,20 @@ async function loadOutputOptions() {
   } catch (error) {
     console.warn('DeckLink device enumeration failed:', error);
   }
-  
+
   // Populate all output selects
   const activeOutputs = new Map();
-  playerOutputSelects.forEach(select => {
+  playerOutputSelects.forEach((select) => {
     const playerId = select.closest('.player-card')?.dataset.playerId;
     if (playerId && select.value) {
       activeOutputs.set(playerId, select.value);
     }
   });
 
-  playerOutputSelects.forEach(select => {
+  playerOutputSelects.forEach((select) => {
     // Clear existing options except "None"
     select.innerHTML = '<option value="">None</option>';
-    
+
     // Add display options
     if (displays.length === 0) {
       const option = document.createElement('option');
@@ -1708,7 +1774,7 @@ async function loadOutputOptions() {
       option.disabled = true;
       select.appendChild(option);
     } else {
-      displays.forEach(display => {
+      displays.forEach((display) => {
         const option = document.createElement('option');
         option.value = `display:${display.id}`;
         option.textContent = display.label;
@@ -1724,9 +1790,11 @@ async function loadOutputOptions() {
         option.value = `decklink:${index}`;
         option.textContent = deviceName;
         const playerId = select.closest('.player-card')?.dataset.playerId;
-        const isSelectedElsewhere = Array.from(activeOutputs.entries()).some(([otherPlayerId, value]) => {
-          return otherPlayerId !== playerId && value === option.value;
-        });
+        const isSelectedElsewhere = Array.from(activeOutputs.entries()).some(
+          ([otherPlayerId, value]) => {
+            return otherPlayerId !== playerId && value === option.value;
+          }
+        );
         if (isSelectedElsewhere) {
           option.disabled = true;
           option.textContent = `${deviceName} (In use)`;
@@ -1741,7 +1809,6 @@ async function loadOutputOptions() {
     if (previousValue && select.querySelector(`option[value="${previousValue}"]`)) {
       select.value = previousValue;
     }
-
   });
 }
 
@@ -1762,7 +1829,7 @@ async function handleOutputChange(playerId, outputValue, playerCard) {
         playerId,
         displayId,
         outputType: 'display',
-        streamName: null
+        streamName: null,
       });
 
       if (!result.success) {
@@ -1814,7 +1881,7 @@ async function refreshDeckLinkDevices() {
         status.textContent = 'No DeckLink devices found.';
       } else {
         status.textContent = `Found ${devices.length} DeckLink device${devices.length === 1 ? '' : 's'}.`;
-        devices.forEach(device => {
+        devices.forEach((device) => {
           const li = document.createElement('li');
           li.textContent = device;
           list.appendChild(li);
@@ -1850,14 +1917,19 @@ async function populateMultiviewOutputOptions() {
   }
 
   const activeOutputs = new Set();
-  document.querySelectorAll('.player-card .output-select, #multiview-output-select').forEach(outputSelect => {
-    if (outputSelect.value && (outputSelect.value.startsWith('display:') || outputSelect.value.startsWith('decklink:'))) {
-      activeOutputs.add(outputSelect.value);
-    }
-  });
+  document
+    .querySelectorAll('.player-card .output-select, #multiview-output-select')
+    .forEach((outputSelect) => {
+      if (
+        outputSelect.value &&
+        (outputSelect.value.startsWith('display:') || outputSelect.value.startsWith('decklink:'))
+      ) {
+        activeOutputs.add(outputSelect.value);
+      }
+    });
 
   select.innerHTML = '<option value="">None</option>';
-  displays.forEach(display => {
+  displays.forEach((display) => {
     const option = document.createElement('option');
     option.value = `display:${display.id}`;
     option.textContent = display.label;
@@ -1884,7 +1956,10 @@ async function populateMultiviewOutputOptions() {
     select.appendChild(group);
   }
 
-  if (multiviewState.outputSelection && select.querySelector(`option[value="${multiviewState.outputSelection}"]`)) {
+  if (
+    multiviewState.outputSelection &&
+    select.querySelector(`option[value="${multiviewState.outputSelection}"]`)
+  ) {
     select.value = multiviewState.outputSelection;
   }
 }
@@ -1898,7 +1973,7 @@ async function applyMultiviewOutput() {
 
   const result = await ipcRenderer.invoke('set-multiview-output', {
     outputSelection: multiviewState.outputSelection,
-    gridMode: multiviewState.gridMode
+    gridMode: multiviewState.gridMode,
   });
 
   if (!result || !result.success) {
@@ -1953,7 +2028,7 @@ function setupMultiviewModal() {
     multiviewModal.classList.remove('active');
   });
 
-  multiviewModal.addEventListener('click', event => {
+  multiviewModal.addEventListener('click', (event) => {
     if (event.target === multiviewModal) {
       multiviewModal.classList.remove('active');
     }
@@ -2033,7 +2108,7 @@ function getDeckLinkVideoModeSetting() {
 function applyDeckLinkVideoModeSetting(value) {
   const videoMode = value || DEFAULT_DECKLINK_VIDEO_MODE;
   localStorage.setItem('decklinkVideoMode', videoMode);
-  ipcRenderer.invoke('decklink-set-video-mode', { videoMode }).catch(error => {
+  ipcRenderer.invoke('decklink-set-video-mode', { videoMode }).catch((error) => {
     console.warn('Failed to persist DeckLink video mode:', error);
   });
 }
@@ -2043,7 +2118,7 @@ function populateDeckLinkVideoModeOptions() {
   if (!select) return;
 
   select.innerHTML = '';
-  DECKLINK_VIDEO_MODES.forEach(mode => {
+  DECKLINK_VIDEO_MODES.forEach((mode) => {
     const option = document.createElement('option');
     option.value = mode.value;
     option.textContent = mode.label;
@@ -2088,19 +2163,28 @@ function setupColorPickerModal() {
   const modal = document.getElementById('color-picker-modal');
   const closeBtn = document.getElementById('color-picker-close');
   const applyBtn = document.getElementById('apply-color');
-  
+
   const redSlider = document.getElementById('red-slider');
   const greenSlider = document.getElementById('green-slider');
   const blueSlider = document.getElementById('blue-slider');
-  
+
   const redValue = document.getElementById('red-value');
   const greenValue = document.getElementById('green-value');
   const blueValue = document.getElementById('blue-value');
-  
+
   const hexInput = document.getElementById('hex-input');
   const previewBox = document.getElementById('color-preview-box');
 
-  if (!modal || !closeBtn || !applyBtn || !redSlider || !greenSlider || !blueSlider || !hexInput || !previewBox) {
+  if (
+    !modal ||
+    !closeBtn ||
+    !applyBtn ||
+    !redSlider ||
+    !greenSlider ||
+    !blueSlider ||
+    !hexInput ||
+    !previewBox
+  ) {
     return;
   }
 
@@ -2109,11 +2193,11 @@ function setupColorPickerModal() {
     currentColor.r = parseInt(redSlider.value);
     currentColor.g = parseInt(greenSlider.value);
     currentColor.b = parseInt(blueSlider.value);
-    
+
     redValue.textContent = currentColor.r;
     greenValue.textContent = currentColor.g;
     blueValue.textContent = currentColor.b;
-    
+
     const hex = rgbToHex(currentColor.r, currentColor.g, currentColor.b);
     hexInput.value = hex;
     previewBox.style.background = hex;
@@ -2125,15 +2209,15 @@ function setupColorPickerModal() {
     if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
       const rgb = hexToRgb(hex);
       currentColor = rgb;
-      
+
       redSlider.value = rgb.r;
       greenSlider.value = rgb.g;
       blueSlider.value = rgb.b;
-      
+
       redValue.textContent = rgb.r;
       greenValue.textContent = rgb.g;
       blueValue.textContent = rgb.b;
-      
+
       previewBox.style.background = hex;
     }
   }
@@ -2165,34 +2249,36 @@ function setupColorPickerModal() {
 function openColorPicker(playerId, playerCard) {
   currentColorPlayerId = playerId;
   currentColorPlayerCard = playerCard;
-  
+
   // Get current background color
   const previewContainer = playerCard.querySelector('.player-preview');
-  const currentBg = previewContainer ? window.getComputedStyle(previewContainer).backgroundColor : 'rgb(0, 0, 0)';
-  
+  const currentBg = previewContainer
+    ? window.getComputedStyle(previewContainer).backgroundColor
+    : 'rgb(0, 0, 0)';
+
   // Parse RGB color
   const match = currentBg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
   if (match) {
     currentColor = {
       r: parseInt(match[1]),
       g: parseInt(match[2]),
-      b: parseInt(match[3])
+      b: parseInt(match[3]),
     };
   }
-  
+
   // Update modal with current color
   document.getElementById('red-slider').value = currentColor.r;
   document.getElementById('green-slider').value = currentColor.g;
   document.getElementById('blue-slider').value = currentColor.b;
-  
+
   document.getElementById('red-value').textContent = currentColor.r;
   document.getElementById('green-value').textContent = currentColor.g;
   document.getElementById('blue-value').textContent = currentColor.b;
-  
+
   const hex = rgbToHex(currentColor.r, currentColor.g, currentColor.b);
   document.getElementById('hex-input').value = hex;
   document.getElementById('color-preview-box').style.background = hex;
-  
+
   // Show modal
   document.getElementById('color-picker-modal').classList.add('active');
 }
@@ -2200,41 +2286,48 @@ function openColorPicker(playerId, playerCard) {
 function applyBackgroundColor(playerId, playerCard, hexColor) {
   // Store in data attribute for persistence
   playerCard.dataset.backgroundColor = hexColor;
-  
+
   // Update color preview in button
   const colorPreview = playerCard.querySelector('.color-preview');
   if (colorPreview) {
     colorPreview.style.background = hexColor;
   }
-  
+
   // Update preview background
   const previewContainer = playerCard.querySelector('.player-preview');
   if (previewContainer) {
     previewContainer.style.background = hexColor;
   }
-  
+
   // Send to output window
   ipcRenderer.send('update-background-color', { playerId, color: hexColor });
   schedulePlayerViewSync(playerId, playerCard);
-  
+
   // Save state
   savePlayerState(playerId);
 }
 
 function rgbToHex(r, g, b) {
-  return '#' + [r, g, b].map(x => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  }).join('');
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('')
+  );
 }
 
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : { r: 0, g: 0, b: 0 };
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
 }
 
 // State persistence functions
@@ -2251,11 +2344,11 @@ function savePlayerState(playerId) {
     backgroundColor: playerCard.dataset.backgroundColor || '#000000',
     outputSelection: playerCard.querySelector('.output-select')?.value || '',
     autoStart: playerCard.querySelector('.auto-start-checkbox')?.checked || false,
-    customTitle: playerCard.dataset.customTitle || ''
+    customTitle: playerCard.dataset.customTitle || '',
   };
 
   localStorage.setItem(`player${playerId}State`, JSON.stringify(state));
-  ipcRenderer.invoke('set-player-state', { playerId, state }).catch(error => {
+  ipcRenderer.invoke('set-player-state', { playerId, state }).catch((error) => {
     console.error(`Failed to persist player ${playerId} state to main store:`, error);
   });
   console.log(`Saved state for player ${playerId}`);
@@ -2311,7 +2404,7 @@ async function loadPlayerState(playerId) {
   }
 
   if (changed) {
-    ipcRenderer.invoke('set-player-state', { playerId, state }).catch(error => {
+    ipcRenderer.invoke('set-player-state', { playerId, state }).catch((error) => {
       console.error(`Failed to persist migrated state for player ${playerId}:`, error);
     });
   }
@@ -2353,7 +2446,7 @@ async function loadPlayerState(playerId) {
   if (autoStartCheckbox && state.autoStart !== undefined) {
     autoStartCheckbox.checked = state.autoStart;
   }
-  
+
   // Restore custom title
   if (state.customTitle) {
     applyCustomTitle(playerId, playerCard, state.customTitle);
@@ -2379,7 +2472,7 @@ async function loadPlayerState(playerId) {
   // Restore folder path and auto-start if folder has images AND auto-start is enabled
   if (state.folderPath) {
     await loadFolderFromPath(playerId, playerCard, state.folderPath);
-    
+
     // Auto-start player if folder was successfully loaded with images AND auto-start is enabled
     if (state.autoStart && players[playerId].images && players[playerId].images.length > 0) {
       console.log(`Auto-starting player ${playerId}`);
@@ -2428,7 +2521,7 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
   try {
     // Use IPC to reload the folder (this will also start the watcher)
     const result = await ipcRenderer.invoke('reload-folder', { playerId, folderPath });
-    
+
     if (!result || !result.images || result.images.length === 0) {
       console.log(`Could not reload folder: ${folderPath}`);
       return;
@@ -2445,7 +2538,7 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
       folderPathEl.textContent = folderPath;
       folderPathEl.title = folderPath;
     }
-    
+
     setPlayToggleState(playerCard, false, true);
 
     // Show preview of first image
@@ -2461,7 +2554,9 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
 
     schedulePlayerViewSync(playerId, playerCard);
 
-    console.log(`Restored folder for player ${playerId}: ${folderPath} (${result.images.length} images)`);
+    console.log(
+      `Restored folder for player ${playerId}: ${folderPath} (${result.images.length} images)`
+    );
   } catch (error) {
     console.error(`Error loading saved folder for player ${playerId}:`, error);
   }
@@ -2472,26 +2567,26 @@ function enableTitleEdit(playerId, playerCard, playerName) {
   // Store original text
   const originalText = playerName.textContent;
   const defaultTitle = `Player ${playerId}`;
-  
+
   // Make editable
   playerName.contentEditable = true;
   playerName.style.userSelect = 'text';
   playerName.focus();
-  
+
   // Select all text
   const range = document.createRange();
   range.selectNodeContents(playerName);
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(range);
-  
+
   // Function to finish editing
   const finishEdit = () => {
     playerName.contentEditable = false;
     playerName.style.userSelect = 'none';
-    
+
     const newTitle = playerName.textContent.trim();
-    
+
     if (newTitle === '' || newTitle === defaultTitle) {
       // Reset to default if empty or same as default
       playerName.textContent = defaultTitle;
@@ -2504,17 +2599,17 @@ function enableTitleEdit(playerId, playerCard, playerName) {
       // No change, restore original
       playerName.textContent = originalText;
     }
-    
+
     savePlayerState(playerId);
   };
-  
+
   // Handle blur (clicking away)
   const blurHandler = () => {
     finishEdit();
     playerName.removeEventListener('blur', blurHandler);
     playerName.removeEventListener('keydown', keyHandler);
   };
-  
+
   // Handle keyboard events
   const keyHandler = (e) => {
     if (e.key === 'Enter') {
@@ -2526,7 +2621,7 @@ function enableTitleEdit(playerId, playerCard, playerName) {
       playerName.blur();
     }
   };
-  
+
   playerName.addEventListener('blur', blurHandler);
   playerName.addEventListener('keydown', keyHandler);
 }
@@ -2534,14 +2629,14 @@ function enableTitleEdit(playerId, playerCard, playerName) {
 function applyCustomTitle(playerId, playerCard, customTitle) {
   // Store in data attribute
   playerCard.dataset.customTitle = customTitle;
-  
+
   // Update the h2 text
   const playerName = playerCard.querySelector('.player-name');
   if (playerName) {
     playerName.textContent = customTitle;
   }
   schedulePlayerViewSync(playerId, playerCard);
-  
+
   // Save state
   savePlayerState(playerId);
 }
@@ -2549,14 +2644,14 @@ function applyCustomTitle(playerId, playerCard, customTitle) {
 function resetToDefaultTitle(playerId, playerCard) {
   // Clear data attribute
   playerCard.dataset.customTitle = '';
-  
+
   // Reset to default title
   const playerName = playerCard.querySelector('.player-name');
   if (playerName) {
     playerName.textContent = `Player ${playerId}`;
   }
   schedulePlayerViewSync(playerId, playerCard);
-  
+
   // Save state
   savePlayerState(playerId);
 }

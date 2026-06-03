@@ -32,7 +32,7 @@ ipcRenderer.on('debug-log-buffer', (event, entries) => {
   if (!Array.isArray(entries)) return;
   logOutput.textContent = '';
   lineCount = 0;
-  entries.forEach(entry => appendLine(formatEntry(entry)));
+  entries.forEach((entry) => appendLine(formatEntry(entry)));
 });
 
 ipcRenderer.on('debug-log-entry', (event, entry) => {

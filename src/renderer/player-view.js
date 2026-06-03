@@ -39,7 +39,8 @@ function applyPlayerViewTile(playerId, payload = {}) {
 ipcRenderer.on('multiview-state', (event, state) => {
   applyGridMode(state && state.gridMode ? state.gridMode : '2x2');
   for (let playerId = 1; playerId <= 4; playerId += 1) {
-    const payload = state && state.players && state.players[playerId] ? state.players[playerId] : {};
+    const payload =
+      state && state.players && state.players[playerId] ? state.players[playerId] : {};
     applyPlayerViewTile(playerId, payload);
   }
 });

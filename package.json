@@ -11,7 +11,9 @@
     "rebuild:addon": "electron-rebuild -f -w decklink_addon",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "format": "prettier --write \"src/**/*.{js,html,css}\"",
+    "format:check": "prettier --check \"src/**/*.{js,html,css}\""
   },
   "keywords": [
     "slideshow",
@@ -29,7 +31,8 @@
     "electron-builder": "^24.9.1",
     "electron-rebuild": "^3.2.9",
     "node-addon-api": "^7.0.0",
-    "node-gyp": "^10.2.0"
+    "node-gyp": "^10.2.0",
+    "prettier": "^3.8.3"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

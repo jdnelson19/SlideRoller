@@ -11,7 +11,8 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: #1a1a1a;
   color: #ffffff;
   overflow: hidden;
@@ -47,7 +48,7 @@ body.layout-two .players-container {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-body.layout-two .player-card:nth-child(n+3) {
+body.layout-two .player-card:nth-child(n + 3) {
   display: none;
 }
 
@@ -146,10 +147,19 @@ body.layout-stack-1x4 .player-preview {
   flex-shrink: 0;
 }
 
-.status-indicator-overlay.stopped { color: #888; }
-.status-indicator-overlay.stopped::before { background: #666; }
-.status-indicator-overlay.playing { color: #7dff7d; }
-.status-indicator-overlay.playing::before { background: #00ff00; box-shadow: 0 0 4px #00ff00; }
+.status-indicator-overlay.stopped {
+  color: #888;
+}
+.status-indicator-overlay.stopped::before {
+  background: #666;
+}
+.status-indicator-overlay.playing {
+  color: #7dff7d;
+}
+.status-indicator-overlay.playing::before {
+  background: #00ff00;
+  box-shadow: 0 0 4px #00ff00;
+}
 
 body.layout-grid-2x2 .status-indicator-overlay,
 body.layout-stack-1x4 .status-indicator-overlay {
@@ -367,7 +377,9 @@ body.always-on-top .menu-bar {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
   margin-left: 4px;
 }
 
@@ -441,7 +453,9 @@ body.always-on-top .menu-bar {
   font-size: clamp(10px, 0.85vw, 14px);
   font-weight: 700;
   letter-spacing: 0.3px;
-  transition: background 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -482,7 +496,10 @@ body.always-on-top .menu-bar {
   font-size: clamp(10px, 0.75vw, 12px);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -535,7 +552,10 @@ body.always-on-top .menu-bar {
   font-size: clamp(10px, 0.75vw, 12px);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -575,7 +595,9 @@ body.always-on-top .menu-bar {
   cursor: pointer;
   font-size: clamp(10px, 0.8vw, 13px);
   font-weight: 600;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .schedule-add-btn:hover {
@@ -614,7 +636,6 @@ body.always-on-top .menu-bar {
   padding: 8px 12px;
   font-size: clamp(10px, 0.75vw, 12px);
 }
-
 
 .folder-btn:hover {
   background: #4a4a4a;
@@ -808,7 +829,7 @@ body.always-on-top .menu-bar {
   color: #ccc;
 }
 
-.color-slider-group input[type="range"] {
+.color-slider-group input[type='range'] {
   flex: 1;
   accent-color: #0066cc;
 }
@@ -954,7 +975,10 @@ body.always-on-top .menu-bar {
   font-size: clamp(9px, 0.78vw, 12px);
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
 }
 
 .schedule-day-pill:has(input:checked) {

@@ -15,7 +15,8 @@ function main() {
   try {
     const addon = loadAddon();
     const devices = addon && typeof addon.listDevices === 'function' ? addon.listDevices() : [];
-    const diagnostics = addon && typeof addon.getDiagnostics === 'function' ? addon.getDiagnostics() : null;
+    const diagnostics =
+      addon && typeof addon.getDiagnostics === 'function' ? addon.getDiagnostics() : null;
 
     if (devices.length === 0) {
       const message = diagnostics
@@ -29,7 +30,11 @@ function main() {
     const payload = { ok: true, devices, diagnostics };
     process.stdout.write(JSON.stringify(payload));
   } catch (error) {
-    const payload = { ok: false, devices: [], error: error.message || 'DeckLink enumeration failed' };
+    const payload = {
+      ok: false,
+      devices: [],
+      error: error.message || 'DeckLink enumeration failed',
+    };
     process.stdout.write(JSON.stringify(payload));
     process.exitCode = 1;
   }

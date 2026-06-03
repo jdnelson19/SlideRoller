@@ -21,7 +21,7 @@ function listDevices() {
   const workerPath = path.join(__dirname, 'decklink-worker.js');
   const result = spawnSync(process.execPath, [workerPath], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-    encoding: 'utf8'
+    encoding: 'utf8',
   });
 
   if (result.error) {
@@ -33,12 +33,19 @@ function listDevices() {
     if (result.stdout) {
       try {
         const parsed = JSON.parse(result.stdout);
-        if (parsed.error) return { ok: false, devices: [], error: parsed.error, diagnostics: parsed.diagnostics };
-      } catch (_) { /* ignore parse errors */ }
+        if (parsed.error)
+          return { ok: false, devices: [], error: parsed.error, diagnostics: parsed.diagnostics };
+      } catch (_) {
+        /* ignore parse errors */
+      }
     }
     const signalInfo = result.signal ? ` (signal: ${result.signal})` : '';
     const stderrInfo = result.stderr ? ` ${result.stderr}` : '';
-    return { ok: false, devices: [], error: `DeckLink worker failed${signalInfo}.${stderrInfo}`.trim() };
+    return {
+      ok: false,
+      devices: [],
+      error: `DeckLink worker failed${signalInfo}.${stderrInfo}`.trim(),
+    };
   }
 
   if (!result.stdout) {
@@ -77,5 +84,5 @@ module.exports = {
     } catch (error) {
       return { ok: false, error: error.message || 'DeckLink frame send failed.' };
     }
-  }
+  },
 };

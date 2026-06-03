@@ -2,10 +2,7 @@ const { ipcRenderer } = require('electron');
 
 let currentImageIndex = 0;
 let isFirstImage = true;
-const images = [
-  document.getElementById('image1'),
-  document.getElementById('image2')
-];
+const images = [document.getElementById('image1'), document.getElementById('image2')];
 
 // Set initial state - both images hidden, no transition
 images[0].classList.remove('visible', 'fade');
@@ -50,25 +47,25 @@ ipcRenderer.on('update-image', (event, { imagePath, transition, duration, scaleF
       // Subsequent images: crossfade
       const performCrossfade = () => {
         console.log(`Starting crossfade: duration=${duration}s`);
-        
+
         // Set the transition duration dynamically
         nextImage.style.transitionDuration = `${duration}s`;
         currentImage.style.transitionDuration = `${duration}s`;
-        
+
         // Force reflow
         void nextImage.offsetHeight;
-        
+
         // Use requestAnimationFrame to ensure smooth transition
         requestAnimationFrame(() => {
           // Add fade class and toggle visibility
           currentImage.classList.add('fade');
           nextImage.classList.add('fade');
-          
+
           requestAnimationFrame(() => {
             console.log('Applying crossfade');
             currentImage.classList.remove('visible');
             nextImage.classList.add('visible');
-            
+
             // Update index after transition completes
             setTimeout(() => {
               currentImageIndex = nextImageIndex;
@@ -77,11 +74,11 @@ ipcRenderer.on('update-image', (event, { imagePath, transition, duration, scaleF
           });
         });
       };
-      
+
       // Ensure next image starts hidden
       nextImage.classList.remove('visible', 'fade');
       nextImage.src = `file://${imagePath}`;
-      
+
       // Handle both onload (new image) and already loaded (cached image)
       if (nextImage.complete && nextImage.naturalHeight !== 0) {
         console.log('Image already loaded (cached), starting crossfade immediately');

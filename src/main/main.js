@@ -32,8 +32,8 @@ const multiviewState = {
     1: null,
     2: null,
     3: null,
-    4: null
-  }
+    4: null,
+  },
 };
 const MAX_DEBUG_LOG_ENTRIES = 2000;
 
@@ -48,7 +48,7 @@ const DECKLINK_VIDEO_MODE_CONFIG = {
   '1080p29.97': { width: 1920, height: 1080, fps: 29.97 },
   '1080p25': { width: 1920, height: 1080, fps: 25 },
   '1080p24': { width: 1920, height: 1080, fps: 24 },
-  '1080p23.98': { width: 1920, height: 1080, fps: 23.98 }
+  '1080p23.98': { width: 1920, height: 1080, fps: 23.98 },
 };
 
 function formatDebugArg(value) {
@@ -72,7 +72,7 @@ function pushDebugLog(level, source, args) {
     timestamp: new Date().toISOString(),
     level,
     source,
-    message
+    message,
   };
 
   debugLogBuffer.push(entry);
@@ -89,10 +89,10 @@ const originalConsole = {
   log: console.log.bind(console),
   info: console.info.bind(console),
   warn: console.warn.bind(console),
-  error: console.error.bind(console)
+  error: console.error.bind(console),
 };
 
-['log', 'info', 'warn', 'error'].forEach(level => {
+['log', 'info', 'warn', 'error'].forEach((level) => {
   console[level] = (...args) => {
     originalConsole[level](...args);
     pushDebugLog(level, 'main', args);
@@ -111,8 +111,8 @@ function createDebugWindow() {
     title: 'Slide Roller Debug Logs',
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
-    }
+      contextIsolation: false,
+    },
   });
 
   debugWindow.loadFile('src/renderer/debug.html');
@@ -140,8 +140,8 @@ function createHelpWindow() {
     title: 'Slide Roller Help',
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
-    }
+      contextIsolation: false,
+    },
   });
 
   helpWindow.loadFile('src/renderer/help.html');
@@ -168,7 +168,7 @@ function closeMultiviewWindow(notifyRenderer = true) {
 
 function createMultiviewWindow(displayId) {
   const displays = screen.getAllDisplays();
-  const targetDisplay = displays.find(display => display.id === displayId);
+  const targetDisplay = displays.find((display) => display.id === displayId);
   if (!targetDisplay) {
     return { success: false, error: 'Display not found' };
   }
@@ -186,9 +186,9 @@ function createMultiviewWindow(displayId) {
     frame: false,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
     },
-    backgroundColor: '#000000'
+    backgroundColor: '#000000',
   });
 
   multiviewWindow.multiviewDisplayId = displayId;
@@ -199,7 +199,11 @@ function createMultiviewWindow(displayId) {
   });
 
   multiviewWindow.on('closed', () => {
-    if (multiviewOutput && multiviewOutput.type === 'display' && multiviewOutput.displayId === displayId) {
+    if (
+      multiviewOutput &&
+      multiviewOutput.type === 'display' &&
+      multiviewOutput.displayId === displayId
+    ) {
       multiviewOutput = null;
     }
     multiviewWindow = null;
@@ -236,7 +240,11 @@ function notifyPlayerOutputLost(playerId, reason = 'Output connection was lost.'
 function handleDisplayRemoved(removedDisplay) {
   if (!removedDisplay) return;
 
-  if (multiviewWindow && !multiviewWindow.isDestroyed() && multiviewWindow.multiviewDisplayId === removedDisplay.id) {
+  if (
+    multiviewWindow &&
+    !multiviewWindow.isDestroyed() &&
+    multiviewWindow.multiviewDisplayId === removedDisplay.id
+  ) {
     multiviewWindow.close();
   }
 
@@ -254,16 +262,26 @@ function handleDisplayRemoved(removedDisplay) {
 }
 
 function getDeckLinkVideoModeConfig(mode) {
-  return DECKLINK_VIDEO_MODE_CONFIG[mode] || DECKLINK_VIDEO_MODE_CONFIG[DEFAULT_DECKLINK_VIDEO_MODE];
+  return (
+    DECKLINK_VIDEO_MODE_CONFIG[mode] || DECKLINK_VIDEO_MODE_CONFIG[DEFAULT_DECKLINK_VIDEO_MODE]
+  );
 }
 
 function getActiveDeckLinkDeviceIndices(excludePlayerId = null) {
   const entries = Object.entries(decklinkOutputs);
-  const indices = new Set(entries
-    .filter(([playerId]) => excludePlayerId === null || String(playerId) !== String(excludePlayerId))
-    .map(([, output]) => output.index));
+  const indices = new Set(
+    entries
+      .filter(
+        ([playerId]) => excludePlayerId === null || String(playerId) !== String(excludePlayerId)
+      )
+      .map(([, output]) => output.index)
+  );
 
-  if (multiviewOutput && multiviewOutput.type === 'decklink' && Number.isInteger(multiviewOutput.deviceIndex)) {
+  if (
+    multiviewOutput &&
+    multiviewOutput.type === 'decklink' &&
+    Number.isInteger(multiviewOutput.deviceIndex)
+  ) {
     indices.add(multiviewOutput.deviceIndex);
   }
 
@@ -271,7 +289,7 @@ function getActiveDeckLinkDeviceIndices(excludePlayerId = null) {
 }
 
 function getPlayerDeckLinkDeviceIndices() {
-  return new Set(Object.values(decklinkOutputs).map(output => output.index));
+  return new Set(Object.values(decklinkOutputs).map((output) => output.index));
 }
 
 async function startDeckLinkOutput(deviceIndex) {
@@ -284,7 +302,7 @@ async function startDeckLinkOutput(deviceIndex) {
   decklinkActiveModes[deviceIndex] = {
     width: startResult.width || getDeckLinkVideoModeConfig(videoMode).width,
     height: startResult.height || getDeckLinkVideoModeConfig(videoMode).height,
-    videoMode: startResult.mode || videoMode
+    videoMode: startResult.mode || videoMode,
   };
   return { success: true };
 }
@@ -305,21 +323,27 @@ async function sendDeckLinkFrame(deviceIndex, imagePath, scaleFill) {
   if (!imagePath) return;
 
   const activeMode = decklinkActiveModes[deviceIndex];
-  const videoMode = activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
+  const videoMode =
+    activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
   const { width, height } = activeMode || getDeckLinkVideoModeConfig(videoMode);
 
   try {
     const { data, info } = await sharp(imagePath)
       .resize(width, height, {
         fit: scaleFill ? 'cover' : 'contain',
-        background: { r: 0, g: 0, b: 0, alpha: 1 }
+        background: { r: 0, g: 0, b: 0, alpha: 1 },
       })
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
 
     const uyvy = convertRgbaToUyvy(data, info.width, info.height);
-    const result = decklink.sendFrame({ deviceIndex, frame: uyvy, width: info.width, height: info.height });
+    const result = decklink.sendFrame({
+      deviceIndex,
+      frame: uyvy,
+      width: info.width,
+      height: info.height,
+    });
     if (!result?.ok) {
       console.warn('DeckLink frame send failed:', result?.error);
     } else if (decklinkTestPatternTimers[deviceIndex]) {
@@ -343,9 +367,9 @@ function generateDeckLinkTestPattern(width, height) {
       const y0 = lumaLevels[barIndex];
       const y1 = lumaLevels[Math.min(lumaLevels.length - 1, Math.floor((x + 1) / barWidth))];
       uyvy[outIndex++] = 128; // U
-      uyvy[outIndex++] = y0;  // Y0
+      uyvy[outIndex++] = y0; // Y0
       uyvy[outIndex++] = 128; // V
-      uyvy[outIndex++] = y1;  // Y1
+      uyvy[outIndex++] = y1; // Y1
     }
   }
 
@@ -354,7 +378,8 @@ function generateDeckLinkTestPattern(width, height) {
 
 function sendDeckLinkTestPattern(deviceIndex) {
   const activeMode = decklinkActiveModes[deviceIndex];
-  const videoMode = activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
+  const videoMode =
+    activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
   const { width, height } = activeMode || getDeckLinkVideoModeConfig(videoMode);
   const frame = generateDeckLinkTestPattern(width, height);
   const result = decklink.sendFrame({ deviceIndex, frame, width, height });
@@ -405,9 +430,9 @@ function convertRgbaToUyvy(rgba, width, height) {
         y0 = 16 + (0.183 * r0 + 0.614 * g0 + 0.062 * b0);
         y1 = 16 + (0.183 * r1 + 0.614 * g1 + 0.062 * b1);
         u0 = 128 + (-0.101 * r0 - 0.339 * g0 + 0.439 * b0);
-        v0 = 128 + (0.439 * r0 - 0.399 * g0 - 0.040 * b0);
+        v0 = 128 + (0.439 * r0 - 0.399 * g0 - 0.04 * b0);
         u1 = 128 + (-0.101 * r1 - 0.339 * g1 + 0.439 * b1);
-        v1 = 128 + (0.439 * r1 - 0.399 * g1 - 0.040 * b1);
+        v1 = 128 + (0.439 * r1 - 0.399 * g1 - 0.04 * b1);
       } else {
         // BT.601 limited range
         y0 = 16 + (0.257 * r0 + 0.504 * g0 + 0.098 * b0);
@@ -437,15 +462,18 @@ function queueDeckLinkFrame(playerId, payload) {
     return;
   }
 
-  decklinkFrameJobs[playerId] = sendDeckLinkFrame(payload.deviceIndex, payload.imagePath, payload.scaleFill)
-    .finally(() => {
-      decklinkFrameJobs[playerId] = null;
-      const pending = decklinkFramePending[playerId];
-      if (pending) {
-        decklinkFramePending[playerId] = null;
-        queueDeckLinkFrame(playerId, pending);
-      }
-    });
+  decklinkFrameJobs[playerId] = sendDeckLinkFrame(
+    payload.deviceIndex,
+    payload.imagePath,
+    payload.scaleFill
+  ).finally(() => {
+    decklinkFrameJobs[playerId] = null;
+    const pending = decklinkFramePending[playerId];
+    if (pending) {
+      decklinkFramePending[playerId] = null;
+      queueDeckLinkFrame(playerId, pending);
+    }
+  });
 }
 
 function parseImagePathFromSrc(src) {
@@ -464,7 +492,8 @@ async function renderMultiviewDeckLinkFrame(deviceIndex) {
   if (!Number.isInteger(deviceIndex)) return;
 
   const activeMode = decklinkActiveModes[deviceIndex];
-  const videoMode = activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
+  const videoMode =
+    activeMode?.videoMode || decklinkSettings.videoMode || DEFAULT_DECKLINK_VIDEO_MODE;
   const { width, height } = activeMode || getDeckLinkVideoModeConfig(videoMode);
   const isTwoByOne = multiviewState.gridMode === '2x1';
   const columns = isTwoByOne ? 2 : 2;
@@ -490,11 +519,11 @@ async function renderMultiviewDeckLinkFrame(deviceIndex) {
           width: tileWidth,
           height: tileHeight,
           channels: 4,
-          background
-        }
+          background,
+        },
       },
       left: x,
-      top: y
+      top: y,
     });
 
     if (!imagePath || !fs.existsSync(imagePath)) {
@@ -506,7 +535,7 @@ async function renderMultiviewDeckLinkFrame(deviceIndex) {
       const tileImage = await sharp(imagePath)
         .resize(tileWidth, tileHeight, {
           fit,
-          background
+          background,
         })
         .ensureAlpha()
         .png()
@@ -515,10 +544,13 @@ async function renderMultiviewDeckLinkFrame(deviceIndex) {
       composites.push({
         input: tileImage,
         left: x,
-        top: y
+        top: y,
       });
     } catch (error) {
-      console.warn(`Failed to render multiview tile for player ${playerId}:`, error.message || error);
+      console.warn(
+        `Failed to render multiview tile for player ${playerId}:`,
+        error.message || error
+      );
     }
   }
 
@@ -528,8 +560,8 @@ async function renderMultiviewDeckLinkFrame(deviceIndex) {
         width,
         height,
         channels: 4,
-        background: '#000000'
-      }
+        background: '#000000',
+      },
     })
       .composite(composites)
       .raw()
@@ -556,15 +588,14 @@ function queueMultiviewDeckLinkFrame() {
     return;
   }
 
-  decklinkFrameJobs.multiview = renderMultiviewDeckLinkFrame(deviceIndex)
-    .finally(() => {
-      decklinkFrameJobs.multiview = null;
-      const pending = decklinkFramePending.multiview;
-      if (pending && pending.deviceIndex === deviceIndex) {
-        decklinkFramePending.multiview = null;
-        queueMultiviewDeckLinkFrame();
-      }
-    });
+  decklinkFrameJobs.multiview = renderMultiviewDeckLinkFrame(deviceIndex).finally(() => {
+    decklinkFrameJobs.multiview = null;
+    const pending = decklinkFramePending.multiview;
+    if (pending && pending.deviceIndex === deviceIndex) {
+      decklinkFramePending.multiview = null;
+      queueMultiviewDeckLinkFrame();
+    }
+  });
 }
 
 function createWindow() {
@@ -574,25 +605,27 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      enableRemoteModule: true
+      enableRemoteModule: true,
     },
-    title: 'Slide Roller'
+    title: 'Slide Roller',
   });
 
   mainWindow.loadFile('src/renderer/index.html');
 
   const template = [
     ...(process.platform === 'darwin'
-      ? [{
-          label: app.name,
-          submenu: [
-            { role: 'about' },
-            { type: 'separator' },
-            { role: 'services' },
-            { type: 'separator' },
-            { role: 'quit' }
-          ]
-        }]
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
       : []),
     {
       label: 'File',
@@ -607,7 +640,7 @@ function createWindow() {
             const saveResult = await dialog.showSaveDialog(mainWindow, {
               title: 'Export Player Configurations',
               defaultPath,
-              filters: [{ name: 'JSON', extensions: ['json'] }]
+              filters: [{ name: 'JSON', extensions: ['json'] }],
             });
 
             if (saveResult.canceled || !saveResult.filePath) return;
@@ -617,33 +650,37 @@ function createWindow() {
                 version: 1,
                 app: 'Slide Roller',
                 exportedAt: new Date().toISOString(),
-                players: {}
+                players: {},
               };
 
               for (let playerId = 1; playerId <= 4; playerId += 1) {
                 exportPayload.players[playerId] = {
                   state: playerStateStore.get(`player${playerId}State`, null),
-                  schedules: scheduleStore.get(`player${playerId}Schedules`, null)
+                  schedules: scheduleStore.get(`player${playerId}Schedules`, null),
                 };
               }
 
-              await fs.promises.writeFile(saveResult.filePath, JSON.stringify(exportPayload, null, 2), 'utf8');
+              await fs.promises.writeFile(
+                saveResult.filePath,
+                JSON.stringify(exportPayload, null, 2),
+                'utf8'
+              );
 
               await dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 title: 'Export Complete',
                 message: 'Player configurations were exported successfully.',
-                detail: saveResult.filePath
+                detail: saveResult.filePath,
               });
             } catch (error) {
               await dialog.showMessageBox(mainWindow, {
                 type: 'error',
                 title: 'Export Failed',
                 message: 'Unable to export player configurations.',
-                detail: error.message || String(error)
+                detail: error.message || String(error),
               });
             }
-          }
+          },
         },
         {
           label: 'Import Player Configurations...',
@@ -653,7 +690,7 @@ function createWindow() {
             const openResult = await dialog.showOpenDialog(mainWindow, {
               title: 'Import Player Configurations',
               properties: ['openFile'],
-              filters: [{ name: 'JSON', extensions: ['json'] }]
+              filters: [{ name: 'JSON', extensions: ['json'] }],
             });
 
             if (openResult.canceled || openResult.filePaths.length === 0) return;
@@ -663,7 +700,12 @@ function createWindow() {
             try {
               const raw = await fs.promises.readFile(filePath, 'utf8');
               const parsed = JSON.parse(raw);
-              if (!parsed || typeof parsed !== 'object' || !parsed.players || typeof parsed.players !== 'object') {
+              if (
+                !parsed ||
+                typeof parsed !== 'object' ||
+                !parsed.players ||
+                typeof parsed.players !== 'object'
+              ) {
                 throw new Error('Invalid configuration file format.');
               }
 
@@ -691,14 +733,14 @@ function createWindow() {
                 type: 'error',
                 title: 'Import Failed',
                 message: 'Unable to import player configurations.',
-                detail: error.message || String(error)
+                detail: error.message || String(error),
               });
             }
-          }
+          },
         },
         { type: 'separator' },
-        { role: 'close' }
-      ]
+        { role: 'close' },
+      ],
     },
     {
       label: 'Tools',
@@ -709,7 +751,7 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('open-output-settings');
             }
-          }
+          },
         },
         {
           label: 'Multiview',
@@ -717,14 +759,14 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('open-multiview-settings');
             }
-          }
+          },
         },
         {
           label: 'Debug',
           accelerator: 'CommandOrControl+D',
           click: () => {
             createDebugWindow();
-          }
+          },
         },
         {
           label: 'Stop All Players',
@@ -733,7 +775,7 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('stop-all-players');
             }
-          }
+          },
         },
         { type: 'separator' },
         {
@@ -744,9 +786,9 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('reset-all-to-default');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     },
     {
       label: 'View',
@@ -758,13 +800,13 @@ function createWindow() {
           accelerator: 'CommandOrControl+F',
           type: 'checkbox',
           checked: false,
-          click: menuItem => {
+          click: (menuItem) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
               const enabled = !!menuItem.checked;
               mainWindow.setAlwaysOnTop(enabled);
               mainWindow.webContents.send('always-on-top-changed', { enabled });
             }
-          }
+          },
         },
         { type: 'separator' },
         {
@@ -777,7 +819,7 @@ function createWindow() {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('set-player-layout', { mode: 'two' });
                 }
-              }
+              },
             },
             {
               label: '4 Player',
@@ -786,9 +828,9 @@ function createWindow() {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('set-player-layout', { mode: 'four' });
                 }
-              }
-            }
-          ]
+              },
+            },
+          ],
         },
         { type: 'separator' },
         {
@@ -801,7 +843,7 @@ function createWindow() {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('toggle-schedule-sort');
                 }
-              }
+              },
             },
             { type: 'separator' },
             {
@@ -810,7 +852,7 @@ function createWindow() {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('set-schedule-sort', { sort: 'time' });
                 }
-              }
+              },
             },
             {
               label: 'Sort by Name',
@@ -818,9 +860,9 @@ function createWindow() {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('set-schedule-sort', { sort: 'name' });
                 }
-              }
-            }
-          ]
+              },
+            },
+          ],
         },
         { type: 'separator' },
         {
@@ -830,7 +872,7 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('set-global-tab', { tab: 'transition' });
             }
-          }
+          },
         },
         {
           label: 'Schedule',
@@ -839,7 +881,7 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('set-global-tab', { tab: 'schedule' });
             }
-          }
+          },
         },
         {
           label: 'Output',
@@ -848,9 +890,9 @@ function createWindow() {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('set-global-tab', { tab: 'output' });
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     },
     {
       label: 'Help',
@@ -860,17 +902,19 @@ function createWindow() {
           accelerator: 'CommandOrControl+H',
           click: () => {
             createHelpWindow();
-          }
+          },
         },
         {
           label: 'Report a Problem',
           click: () => {
-            shell.openExternal('https://github.com/jdnelson19/SlideRoller/issues').catch(error => {
-              console.error('Failed to open Report a Problem URL:', error);
-            });
-          }
-        }
-      ]
+            shell
+              .openExternal('https://github.com/jdnelson19/SlideRoller/issues')
+              .catch((error) => {
+                console.error('Failed to open Report a Problem URL:', error);
+              });
+          },
+        },
+      ],
     },
     // Intentionally omit Edit/View/Window/Help menus
   ];
@@ -886,7 +930,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
     // Close all output windows
-    Object.values(outputWindows).forEach(win => {
+    Object.values(outputWindows).forEach((win) => {
       if (win && !win.isDestroyed()) {
         win.close();
       }
@@ -896,7 +940,7 @@ function createWindow() {
       helpWindow.close();
     }
     // Stop all folder watchers
-    Object.keys(folderWatchers).forEach(playerId => {
+    Object.keys(folderWatchers).forEach((playerId) => {
       stopWatchingFolder(playerId);
     });
   });
@@ -941,7 +985,7 @@ app.on('before-quit', (event) => {
       cancelId: 0,
       title: 'Confirm Quit',
       message: 'Quit Slide Roller?',
-      detail: 'Quitting now may interrupt live video output and active schedules.'
+      detail: 'Quitting now may interrupt live video output and active schedules.',
     });
 
     if (response !== 1) {
@@ -963,16 +1007,16 @@ app.on('before-quit', (event) => {
 // Select folder for a player
 ipcMain.handle('select-folder', async (event, playerId) => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
     const folderPath = result.filePaths[0];
     const images = await getImagesFromFolder(folderPath);
-    
+
     // Start watching this folder
     startWatchingFolder(playerId, folderPath);
-    
+
     return { path: folderPath, images };
   }
 
@@ -982,7 +1026,7 @@ ipcMain.handle('select-folder', async (event, playerId) => {
 // Pick a folder path without starting playback/watcher
 ipcMain.handle('pick-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
@@ -1021,9 +1065,12 @@ ipcMain.handle('set-multiview-output', async (event, { outputSelection, gridMode
   const nextGridMode = gridMode === '2x1' ? '2x1' : '2x2';
   broadcastMultiviewGridMode(nextGridMode);
 
-  const selection = typeof outputSelection === 'string' && outputSelection.length > 0
-    ? outputSelection
-    : (Number.isInteger(displayId) ? `display:${displayId}` : '');
+  const selection =
+    typeof outputSelection === 'string' && outputSelection.length > 0
+      ? outputSelection
+      : Number.isInteger(displayId)
+        ? `display:${displayId}`
+        : '';
 
   if (!selection) {
     if (multiviewOutput && multiviewOutput.type === 'decklink') {
@@ -1083,7 +1130,11 @@ ipcMain.handle('set-multiview-output', async (event, { outputSelection, gridMode
     closeMultiviewWindow(false);
     multiviewOutput = { type: 'decklink', deviceIndex };
 
-    if (previousOutput && previousOutput.type === 'decklink' && previousOutput.deviceIndex !== deviceIndex) {
+    if (
+      previousOutput &&
+      previousOutput.type === 'decklink' &&
+      previousOutput.deviceIndex !== deviceIndex
+    ) {
       await stopDeckLinkOutputIfUnused(previousOutput.deviceIndex);
     }
 
@@ -1122,7 +1173,7 @@ ipcMain.on('set-layout-min-size', (event, { mode }) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const MIN_SIZES = {
     four: [1100, 680],
-    two: [700, 680]
+    two: [700, 680],
   };
   const [minW, minH] = MIN_SIZES[mode] || [1100, 680];
   mainWindow.setMinimumSize(minW, minH);
@@ -1155,25 +1206,25 @@ ipcMain.handle('ensure-fresh-first-run', async () => {
 // Reload folder from saved path (used when restoring state)
 ipcMain.handle('reload-folder', async (event, { playerId, folderPath }) => {
   const images = await getImagesFromFolder(folderPath);
-  
+
   if (images && images.length > 0) {
     // Start watching this folder
     startWatchingFolder(playerId, folderPath);
     return { images };
   }
-  
+
   return null;
 });
 
 // Get list of available displays
 ipcMain.handle('get-displays', async () => {
   const displays = screen.getAllDisplays();
-  return displays.map(display => ({
+  return displays.map((display) => ({
     id: display.id,
     label: `Display ${display.id}${display.primary ? ' (Primary)' : ''} (${display.size.width}x${display.size.height})`,
     bounds: display.bounds,
     size: display.size,
-    primary: display.primary
+    primary: display.primary,
   }));
 });
 
@@ -1208,7 +1259,7 @@ ipcMain.handle('decklink-set-output', async (event, { playerId, deviceIndex }) =
 
   decklinkOutputs[playerId] = {
     index: deviceIndex,
-    name: result.devices[deviceIndex]
+    name: result.devices[deviceIndex],
   };
 
   startDeckLinkTestPattern(deviceIndex);
@@ -1244,60 +1295,63 @@ ipcMain.handle('decklink-set-video-mode', async (event, { videoMode }) => {
 });
 
 // Create output window for a player
-ipcMain.handle('create-output-window', async (event, { playerId, displayId, outputType, streamName }) => {
-  // Close existing output window for this player
-  if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
-    suppressOutputLostForPlayer[playerId] = true;
-    outputWindows[playerId].close();
-  }
-
-  // Handle monitor output
-  const displays = screen.getAllDisplays();
-  const targetDisplay = displays.find(d => d.id === displayId);
-
-  if (!targetDisplay) {
-    return { success: false, error: 'Display not found' };
-  }
-
-  // Create new output window
-  const outputWindow = new BrowserWindow({
-    x: targetDisplay.bounds.x,
-    y: targetDisplay.bounds.y,
-    width: targetDisplay.bounds.width,
-    height: targetDisplay.bounds.height,
-    fullscreen: true,
-    frame: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    },
-    backgroundColor: '#000000'
-  });
-
-  outputWindow.loadFile('src/renderer/output.html');
-
-  outputWindow.webContents.on('did-finish-load', () => {
-    outputWindow.webContents.send('init-player', { playerId, outputType, streamName });
-  });
-
-  outputWindows[playerId] = outputWindow;
-  outputWindow.outputDisplayId = displayId;
-
-  outputWindow.on('closed', () => {
-    const wasSuppressed = !!suppressOutputLostForPlayer[playerId];
-    delete suppressOutputLostForPlayer[playerId];
-
-    if (outputWindows[playerId] === outputWindow) {
-      delete outputWindows[playerId];
+ipcMain.handle(
+  'create-output-window',
+  async (event, { playerId, displayId, outputType, streamName }) => {
+    // Close existing output window for this player
+    if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
+      suppressOutputLostForPlayer[playerId] = true;
+      outputWindows[playerId].close();
     }
 
-    if (!wasSuppressed) {
-      notifyPlayerOutputLost(playerId, 'Output window was closed or disconnected.');
-    }
-  });
+    // Handle monitor output
+    const displays = screen.getAllDisplays();
+    const targetDisplay = displays.find((d) => d.id === displayId);
 
-  return { success: true, windowId: outputWindow.id };
-});
+    if (!targetDisplay) {
+      return { success: false, error: 'Display not found' };
+    }
+
+    // Create new output window
+    const outputWindow = new BrowserWindow({
+      x: targetDisplay.bounds.x,
+      y: targetDisplay.bounds.y,
+      width: targetDisplay.bounds.width,
+      height: targetDisplay.bounds.height,
+      fullscreen: true,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+      },
+      backgroundColor: '#000000',
+    });
+
+    outputWindow.loadFile('src/renderer/output.html');
+
+    outputWindow.webContents.on('did-finish-load', () => {
+      outputWindow.webContents.send('init-player', { playerId, outputType, streamName });
+    });
+
+    outputWindows[playerId] = outputWindow;
+    outputWindow.outputDisplayId = displayId;
+
+    outputWindow.on('closed', () => {
+      const wasSuppressed = !!suppressOutputLostForPlayer[playerId];
+      delete suppressOutputLostForPlayer[playerId];
+
+      if (outputWindows[playerId] === outputWindow) {
+        delete outputWindows[playerId];
+      }
+
+      if (!wasSuppressed) {
+        notifyPlayerOutputLost(playerId, 'Output window was closed or disconnected.');
+      }
+    });
+
+    return { success: true, windowId: outputWindow.id };
+  }
+);
 
 // Close output window
 ipcMain.handle('close-output-window', async (event, playerId) => {
@@ -1312,20 +1366,28 @@ ipcMain.handle('close-output-window', async (event, playerId) => {
 });
 
 // Send image update to output window
-ipcMain.on('update-output-image', (event, { playerId, imagePath, transition, duration, scaleFill }) => {
-  // Update monitor output window if exists
-  if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
-    outputWindows[playerId].webContents.send('update-image', { imagePath, transition, duration, scaleFill });
-  }
+ipcMain.on(
+  'update-output-image',
+  (event, { playerId, imagePath, transition, duration, scaleFill }) => {
+    // Update monitor output window if exists
+    if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
+      outputWindows[playerId].webContents.send('update-image', {
+        imagePath,
+        transition,
+        duration,
+        scaleFill,
+      });
+    }
 
-  if (decklinkOutputs[playerId]) {
-    queueDeckLinkFrame(playerId, {
-      deviceIndex: decklinkOutputs[playerId].index,
-      imagePath,
-      scaleFill
-    });
+    if (decklinkOutputs[playerId]) {
+      queueDeckLinkFrame(playerId, {
+        deviceIndex: decklinkOutputs[playerId].index,
+        imagePath,
+        scaleFill,
+      });
+    }
   }
-});
+);
 
 // Send background color to output window
 ipcMain.on('update-background-color', (event, { playerId, color }) => {
@@ -1340,15 +1402,15 @@ ipcMain.on('update-background-color', (event, { playerId, color }) => {
 // Helper function to get images from folder
 async function getImagesFromFolder(folderPath) {
   const supportedFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
-  
+
   try {
     const files = await fs.promises.readdir(folderPath);
     const images = files
-      .filter(file => {
+      .filter((file) => {
         const ext = path.extname(file).toLowerCase();
         return supportedFormats.includes(ext);
       })
-      .map(file => path.join(folderPath, file))
+      .map((file) => path.join(folderPath, file))
       .sort();
 
     return images;
@@ -1364,9 +1426,9 @@ function startWatchingFolder(playerId, folderPath) {
     folderWatchers[playerId].close();
     delete folderWatchers[playerId];
   }
-  
+
   const supportedFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
-  
+
   // Create new watcher
   const watcher = chokidar.watch(folderPath, {
     persistent: true,
@@ -1374,10 +1436,10 @@ function startWatchingFolder(playerId, folderPath) {
     depth: 0, // Only watch the immediate directory, not subdirectories
     awaitWriteFinish: {
       stabilityThreshold: 500,
-      pollInterval: 100
-    }
+      pollInterval: 100,
+    },
   });
-  
+
   // Handle file additions and deletions
   const handleChange = async () => {
     const images = await getImagesFromFolder(folderPath);
@@ -1389,7 +1451,7 @@ function startWatchingFolder(playerId, folderPath) {
       outputWindows[playerId].webContents.send('images-updated', { playerId, images });
     }
   };
-  
+
   watcher
     .on('add', (filePath) => {
       const ext = path.extname(filePath).toLowerCase();
@@ -1405,8 +1467,8 @@ function startWatchingFolder(playerId, folderPath) {
         handleChange();
       }
     })
-    .on('error', error => console.error(`Watcher error for player ${playerId}:`, error));
-  
+    .on('error', (error) => console.error(`Watcher error for player ${playerId}:`, error));
+
   folderWatchers[playerId] = watcher;
   console.log(`Started watching folder for player ${playerId}: ${folderPath}`);
 }
