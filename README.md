@@ -79,110 +79,33 @@ Build outputs are generated in the dist directory, including:
 Notes:
 
 - Local unsigned builds are fine for testing on the build machine.
-- For distribution to other Macs, configure signing and notarization environment variables before rebuilding.
+- Signed/notarized release builds are produced by GitHub Actions on version tags.
 
 ## macOS Signing and Notarization
 
-This project is configured for signed distribution via `electron-builder`:
+Release signing and notarization are handled by GitHub Actions in
+`.github/workflows/release.yml`.
 
-- `build.mac.identity` uses `CSC_NAME`
-- Hardened runtime and entitlements are enabled
-- `scripts/notarize.js` runs after signing
+When a tag matching `v*.*.*` is pushed, CI:
 
-### 1) Install a Developer ID certificate
+- builds macOS artifacts
+- signs the app
+- notarizes the app
+- publishes DMG/ZIP assets to the GitHub Release
 
-In your Apple Developer account, create/download:
+### Required GitHub Secrets
 
-- Developer ID Application certificate
+Set these repository secrets for CI signing/notarization:
 
-Import it into your macOS login keychain, then confirm it exists:
+- `CSC_NAME`
+- `APPLE_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+- `APPLE_TEAM_ID`
 
-```bash
-security find-identity -v -p codesigning
-```
-
-You should see an identity like:
-
-- `Developer ID Application: Your Name (TEAMID)`
-
-### 2) Set signing identity
-
-Export the exact identity string:
-
-```bash
-export CSC_NAME="Developer ID Application: Your Name (TEAMID)"
-```
-
-### 3) Configure notarization credentials (pick one)
-
-Option A (recommended): Notarytool keychain profile
-
-```bash
-xcrun notarytool store-credentials "slide-roller-notary" \
-  --apple-id "you@example.com" \
-  --team-id "TEAMID" \
-  --password "app-specific-password"
-
-export APPLE_KEYCHAIN_PROFILE="slide-roller-notary"
-```
-
-Option B: Apple ID + app-specific password env vars
-
-```bash
-export APPLE_ID="you@example.com"
-export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-export APPLE_TEAM_ID="TEAMID"
-```
-
-Option C: App Store Connect API key env vars
-
-```bash
-export APPLE_API_KEY="/absolute/path/AuthKey_ABC123XYZ.p8"
-export APPLE_API_KEY_ID="ABC123XYZ"
-export APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
-```
-
-### 4) Run readiness check
+Use this local command only when validating signing setup on a maintainer machine:
 
 ```bash
 npm run check:signing
-```
-
-This command exits non-zero until your cert and notarization credentials are set.
-
-### 5) Build signed artifacts
-
-```bash
-npm run build:mac
-```
-
-### 6) Validate signed app
-
-```bash
-codesign --verify --deep --strict --verbose=2 "dist/mac-arm64/Slide Roller.app"
-spctl -a -vvv --type execute "dist/mac-arm64/Slide Roller.app" 2>&1 || true
-```
-
-### Unsigned Build Quarantine Workaround
-
-Current local builds may be unsigned, and macOS can block launch with a quarantine warning.
-
-If needed, remove quarantine from the app bundle in Terminal:
-
-```bash
-xattr -dr com.apple.quarantine "dist/mac-arm64/Slide Roller.app"
-```
-
-If you are launching from a mounted DMG, remove quarantine from the copied app in Applications:
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Slide Roller.app"
-```
-
-You can verify Gatekeeper assessment from Terminal:
-
-```bash
-spctl -a -vvv --type execute "dist/mac-arm64/Slide Roller.app" 2>&1 || true
 ```
 
 ## Download from GitHub Releases
@@ -193,8 +116,8 @@ Tags matching `v*.*.*` trigger a GitHub Action build and publish the release ass
 To publish downloadable installers:
 
 ```bash
-git tag v1.2.1
-git push origin v1.2.1
+git tag v1.2.2
+git push origin v1.2.2
 ```
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
