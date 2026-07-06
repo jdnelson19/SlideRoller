@@ -9,10 +9,22 @@
   <body>
     <div class="menu-bar">
       <h1>Slide Roller</h1>
+      <div class="segment-tabs" role="tablist" aria-label="Main app sections">
+        <button
+          id="segment-tab-player"
+          class="segment-tab-btn active"
+          role="tab"
+          aria-selected="true"
+          data-segment="player"
+        >
+          Player
+        </button>
+      </div>
     </div>
     <div class="app-container">
-      <!-- Players Container -->
-      <div class="players-container">
+      <section id="app-segment-player" class="app-segment active" role="tabpanel">
+        <!-- Players Container -->
+        <div class="players-container">
         <div class="player-card" data-player-id="1">
           <div class="player-header">
             <h2 class="player-name" title="Double-click to edit">Player 1</h2>
@@ -392,7 +404,9 @@
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </section>
+
     </div>
 
     <!-- Color Picker Modal -->

@@ -34,6 +34,14 @@ button {
   flex-direction: column;
 }
 
+.app-segment {
+  display: none;
+}
+
+.app-segment.active {
+  display: block;
+}
+
 .players-container {
   flex: 0 0 auto;
   padding: 20px;
@@ -203,6 +211,37 @@ body.always-on-top .menu-bar {
 .menu-bar h1 {
   font-size: clamp(16px, 1.5vw, 24px);
   font-weight: 600;
+}
+
+.segment-tabs {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: #1f1f1f;
+  border: 1px solid #3b3b3b;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.segment-tab-btn {
+  border: none;
+  background: transparent;
+  color: #d4d4d4;
+  padding: 8px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: clamp(11px, 0.86vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.segment-tab-btn.active {
+  background: #0b72ce;
+  color: #ffffff;
+}
+
+.segment-tab-btn:hover:not(.active) {
+  background: #2d2d2d;
 }
 
 .menu-btn {

@@ -319,6 +319,65 @@ async function stopDeckLinkOutputIfUnused(deviceIndex) {
   }
 }
 
+async function restoreDeckLinkOutputsFromSavedState() {
+  const result = decklink.listDevices();
+  if (!result.ok || !Array.isArray(result.devices) || result.devices.length === 0) {
+    console.log('No DeckLink devices available for startup restore.');
+    return;
+  }
+
+  const assignedDeviceIndices = new Set();
+
+  for (let playerId = 1; playerId <= 4; playerId += 1) {
+    const state = playerStateStore.get(`player${playerId}State`, null);
+    const outputSelection =
+      state && typeof state.outputSelection === 'string' ? state.outputSelection : '';
+
+    if (!outputSelection.startsWith('decklink:')) {
+      continue;
+    }
+
+    const deviceIndex = Number.parseInt(outputSelection.split(':')[1], 10);
+    if (
+      !Number.isInteger(deviceIndex) ||
+      deviceIndex < 0 ||
+      deviceIndex >= result.devices.length
+    ) {
+      console.warn(
+        `Skipping DeckLink restore for player ${playerId}: invalid index in saved state (${outputSelection}).`
+      );
+      continue;
+    }
+
+    if (assignedDeviceIndices.has(deviceIndex)) {
+      console.warn(
+        `Skipping DeckLink restore for player ${playerId}: device ${deviceIndex} already assigned.`
+      );
+      continue;
+    }
+
+    const startResult = await startDeckLinkOutput(deviceIndex);
+    if (!startResult.success) {
+      console.warn(
+        `Failed to restore DeckLink output for player ${playerId} on device ${deviceIndex}:`,
+        startResult.error
+      );
+      continue;
+    }
+
+    decklinkOutputs[playerId] = {
+      index: deviceIndex,
+      name: result.devices[deviceIndex],
+    };
+    assignedDeviceIndices.add(deviceIndex);
+    startDeckLinkTestPattern(deviceIndex);
+
+    console.log(
+      `Restored DeckLink output for player ${playerId}: device ${deviceIndex} (${result.devices[deviceIndex]}).`
+    );
+  }
+}
+
 async function sendDeckLinkFrame(deviceIndex, imagePath, scaleFill) {
   if (!imagePath) return;
 
@@ -954,6 +1013,10 @@ function broadcastDisplaysChanged() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  restoreDeckLinkOutputsFromSavedState().catch((error) => {
+    console.warn('DeckLink startup restore failed:', error);
+  });
 
   screen.on('display-added', broadcastDisplaysChanged);
   screen.on('display-removed', (event, removedDisplay) => {

@@ -122,6 +122,7 @@ function setupDebugLogBridge() {
 // Initialize players
 document.addEventListener('DOMContentLoaded', async () => {
   setupDebugLogBridge();
+  setupMainSegments();
   initializePlayers();
   setupAppScaling();
   await loadOutputOptions();
@@ -263,6 +264,28 @@ function setupAppScaling() {
 
   resize();
 }
+
+function setupMainSegments() {
+  const playerButton = document.getElementById('segment-tab-player');
+  const playerPanel = document.getElementById('app-segment-player');
+
+  if (playerButton) {
+    playerButton.classList.add('active');
+    playerButton.setAttribute('aria-selected', 'true');
+  }
+
+  if (playerPanel) {
+    playerPanel.classList.add('active');
+    playerPanel.setAttribute('aria-hidden', 'false');
+  }
+
+  if (typeof window.__applyAppScale === 'function') {
+    window.requestAnimationFrame(() => {
+      window.__applyAppScale();
+    });
+  }
+}
+
 function getPlayerViewPayload(playerId, playerCard) {
   const previewImages = Array.from(playerCard.querySelectorAll('.preview-image'));
   const visibleImage =
@@ -2493,7 +2516,18 @@ async function restorePlayerOutput(playerId) {
 
   // Restore output selection
   const outputSelect = playerCard.querySelector('.output-select');
-  if (outputSelect && state.outputSelection && state.outputSelection.startsWith('display:')) {
+  if (
+    outputSelect &&
+    state.outputSelection &&
+    (state.outputSelection.startsWith('display:') || state.outputSelection.startsWith('decklink:'))
+  ) {
+    if (!outputSelect.querySelector(`option[value="${state.outputSelection}"]`)) {
+      console.warn(
+        `Skipping output restore for player ${playerId}: option ${state.outputSelection} is not available.`
+      );
+      return;
+    }
+
     outputSelect.value = state.outputSelection;
     // Re-trigger the output setup if it was previously configured
     await handleOutputChange(playerId, state.outputSelection, playerCard);
