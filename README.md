@@ -49,6 +49,20 @@ Standard mode:
 npm start
 ```
 
+## Code Formatting
+
+Prettier is configured for the source files in `src/`.
+
+```bash
+npm run format
+```
+
+To verify formatting without changing files:
+
+```bash
+npm run format:check
+```
+
 ## Build Installers
 
 Build macOS artifacts:
@@ -173,13 +187,14 @@ spctl -a -vvv --type execute "dist/mac-arm64/Slide Roller.app" 2>&1 || true
 
 ## Download from GitHub Releases
 
-This repo includes an automated release workflow at .github/workflows/release.yml.
+This repo includes an automated release workflow at `.github/workflows/release.yml`.
+Tags matching `v*.*.*` trigger a GitHub Action build and publish the release assets.
 
 To publish downloadable installers:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.2.1
+git push origin v1.2.1
 ```
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
