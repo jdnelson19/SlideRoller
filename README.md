@@ -118,8 +118,8 @@ Tags matching `v*.*.*` trigger a GitHub Action build and publish the release ass
 To publish downloadable installers:
 
 ```bash
-git tag v1.2.2
-git push origin v1.2.2
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
