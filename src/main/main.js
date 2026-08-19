@@ -338,11 +338,7 @@ async function restoreDeckLinkOutputsFromSavedState() {
     }
 
     const deviceIndex = Number.parseInt(outputSelection.split(':')[1], 10);
-    if (
-      !Number.isInteger(deviceIndex) ||
-      deviceIndex < 0 ||
-      deviceIndex >= result.devices.length
-    ) {
+    if (!Number.isInteger(deviceIndex) || deviceIndex < 0 || deviceIndex >= result.devices.length) {
       console.warn(
         `Skipping DeckLink restore for player ${playerId}: invalid index in saved state (${outputSelection}).`
       );
@@ -1431,18 +1427,19 @@ ipcMain.handle('close-output-window', async (event, playerId) => {
 // Send image update to output window
 ipcMain.on(
   'update-output-image',
-  (event, { playerId, imagePath, transition, duration, scaleFill }) => {
+  (event, { playerId, imagePath, mediaType, transition, duration, scaleFill }) => {
     // Update monitor output window if exists
     if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
       outputWindows[playerId].webContents.send('update-image', {
         imagePath,
+        mediaType,
         transition,
         duration,
         scaleFill,
       });
     }
 
-    if (decklinkOutputs[playerId]) {
+    if (decklinkOutputs[playerId] && mediaType !== 'video') {
       queueDeckLinkFrame(playerId, {
         deviceIndex: decklinkOutputs[playerId].index,
         imagePath,
@@ -1451,6 +1448,17 @@ ipcMain.on(
     }
   }
 );
+
+ipcMain.on('output-video-ended', (event, { playerId, mediaPath }) => {
+  const outputWindow = outputWindows[playerId];
+  if (!outputWindow || outputWindow.isDestroyed() || outputWindow.webContents !== event.sender) {
+    return;
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('player-output-video-ended', { playerId, mediaPath });
+  }
+});
 
 // Send background color to output window
 ipcMain.on('update-background-color', (event, { playerId, color }) => {
@@ -1464,7 +1472,20 @@ ipcMain.on('update-background-color', (event, { playerId, color }) => {
 
 // Helper function to get images from folder
 async function getImagesFromFolder(folderPath) {
-  const supportedFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
+  const supportedFormats = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.bmp',
+    '.webp',
+    '.tiff',
+    '.svg',
+    '.mp4',
+    '.mov',
+    '.m4v',
+    '.webm',
+  ];
 
   try {
     const files = await fs.promises.readdir(folderPath);
@@ -1490,7 +1511,20 @@ function startWatchingFolder(playerId, folderPath) {
     delete folderWatchers[playerId];
   }
 
-  const supportedFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
+  const supportedFormats = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.bmp',
+    '.webp',
+    '.tiff',
+    '.svg',
+    '.mp4',
+    '.mov',
+    '.m4v',
+    '.webm',
+  ];
 
   // Create new watcher
   const watcher = chokidar.watch(folderPath, {

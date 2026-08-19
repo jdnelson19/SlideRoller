@@ -453,7 +453,7 @@ body.always-on-top .menu-bar {
   overflow: hidden;
 }
 
-.preview-image {
+.preview-media {
   position: absolute;
   top: 0;
   left: 0;
@@ -464,11 +464,11 @@ body.always-on-top .menu-bar {
   z-index: 1;
 }
 
-.preview-image.visible {
+.preview-media.visible {
   opacity: 1;
 }
 
-.preview-image.fade {
+.preview-media.fade {
   transition: opacity 1s ease-in-out;
 }
 

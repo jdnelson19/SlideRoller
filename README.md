@@ -5,7 +5,9 @@ Slide Roller is a macOS Electron app for running up to 4 simultaneous image slid
 ## Current Features
 
 - 4 independent players, each with its own folder, timing, transition, and output settings
-- Gapless folder playback with live folder watching (auto-updates when images are added/removed)
+- Gapless folder playback with live folder watching (auto-updates when images or videos are added/removed)
+- Image and video playlists: JPG, JPEG, PNG, GIF, BMP, WebP, TIFF, SVG, MP4, MOV, M4V, and WebM
+- Image slides use the configured display time; videos play through to their natural end before advancing
 - Transition modes: Cut or Crossfade (0.5s-5s fade duration)
 - Per-player display time control
 - Per-player background color and Scale to Fill option

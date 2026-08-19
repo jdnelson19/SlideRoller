@@ -1,5 +1,7 @@
 const { ipcRenderer } = require('electron');
 
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v', '.webm']);
+
 // Player state management
 const players = {
   1: {
@@ -146,6 +148,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleFolderUpdate(playerId, images);
   });
 
+  ipcRenderer.on('player-output-video-ended', (event, { playerId, mediaPath }) => {
+    advanceCompletedVideo(playerId, mediaPath);
+  });
+
   ipcRenderer.on('displays-changed', async () => {
     await loadOutputOptions();
     await populateMultiviewOutputOptions();
@@ -287,19 +293,19 @@ function setupMainSegments() {
 }
 
 function getPlayerViewPayload(playerId, playerCard) {
-  const previewImages = Array.from(playerCard.querySelectorAll('.preview-image'));
-  const visibleImage =
-    previewImages.find((image) => image.classList.contains('visible')) ||
-    previewImages.find((image) =>
-      Boolean(image.currentSrc || image.src || image.getAttribute('src'))
+  const previewMedia = Array.from(playerCard.querySelectorAll('.preview-media'));
+  const visibleMedia =
+    previewMedia.find((media) => media.classList.contains('visible')) ||
+    previewMedia.find((media) =>
+      Boolean(media.currentSrc || media.src || media.getAttribute('src'))
     ) ||
-    previewImages[0] ||
+    previewMedia[0] ||
     null;
   const playerName = playerCard.querySelector('.player-name');
   const statusLed = playerCard.querySelector('.status-led');
   const scaleFillCheckbox = playerCard.querySelector('.scale-fill-checkbox');
-  const imageSrc = visibleImage
-    ? visibleImage.currentSrc || visibleImage.src || visibleImage.getAttribute('src') || ''
+  const imageSrc = visibleMedia
+    ? visibleMedia.currentSrc || visibleMedia.src || visibleMedia.getAttribute('src') || ''
     : '';
 
   const nextSchedule = getNextScheduleInfo(playerId);
@@ -318,6 +324,7 @@ function getPlayerViewPayload(playerId, playerCard) {
   return {
     title: playerName ? playerName.textContent : `Player ${playerId}`,
     imageSrc,
+    mediaType: visibleMedia && visibleMedia.tagName === 'VIDEO' ? 'video' : 'image',
     backgroundColor: playerCard.dataset.backgroundColor || '#000000',
     objectFit: scaleFillCheckbox && scaleFillCheckbox.checked ? 'cover' : 'contain',
     status,
@@ -519,10 +526,11 @@ function resetPlayerToDefaults(playerId) {
   }
 
   // Reset preview images and placeholder
-  const previewImages = playerCard.querySelectorAll('.preview-image');
-  previewImages.forEach((img) => {
-    img.src = '';
-    img.classList.remove('visible', 'fade');
+  const previewMedia = playerCard.querySelectorAll('.preview-media');
+  previewMedia.forEach((media) => {
+    if (media.tagName === 'VIDEO') media.pause();
+    media.removeAttribute('src');
+    media.classList.remove('visible', 'fade');
   });
   const placeholder = playerCard.querySelector('.preview-placeholder');
   if (placeholder) placeholder.style.display = 'block';
@@ -1341,9 +1349,9 @@ function initializePlayers() {
     const scaleCheckbox = playerCard.querySelector('.scale-fill-checkbox');
     if (scaleCheckbox) {
       scaleCheckbox.addEventListener('change', (e) => {
-        const previewImages = playerCard.querySelectorAll('.preview-image');
-        previewImages.forEach((img) => {
-          img.style.objectFit = e.target.checked ? 'cover' : 'contain';
+        const previewMedia = playerCard.querySelectorAll('.preview-media');
+        previewMedia.forEach((media) => {
+          media.style.objectFit = e.target.checked ? 'cover' : 'contain';
         });
 
         savePlayerState(i);
@@ -1408,13 +1416,10 @@ async function selectFolder(playerId, playerCard) {
     // Enable start button if images are available
     setPlayToggleState(playerCard, players[playerId].isPlaying, result.images.length > 0);
 
-    // Show first image in preview
+    // Show the first media item in the preview.
     if (result.images.length > 0) {
-      const previewImage = playerCard.querySelector('.preview-image-1');
       const placeholder = playerCard.querySelector('.preview-placeholder');
-
-      previewImage.src = `file://${result.images[0]}`;
-      previewImage.classList.add('visible');
+      showPreviewMedia(playerCard, 0, result.images[0]);
       placeholder.style.display = 'none';
     }
     schedulePlayerViewSync(playerId, playerCard);
@@ -1445,12 +1450,14 @@ function stopPlayer(playerId, playerCard) {
   const player = players[playerId];
 
   player.isPlaying = false;
+  player.activeMediaPath = null;
   player.isFirstImage = true; // Reset for next playback
 
   if (player.intervalId) {
     clearTimeout(player.intervalId);
     player.intervalId = null;
   }
+  playerCard.querySelectorAll('.preview-video').forEach((video) => video.pause());
 
   // Update UI
   updatePlayerStatus(playerCard, 'stopped');
@@ -1498,14 +1505,12 @@ function handleFolderUpdate(playerId, newImages) {
     showPlayerNotification(playerCard, `-${oldImageCount - newImageCount} image(s)`, 'warning');
   }
 
-  // Update preview if not playing and we have images
+  // Update preview if not playing and we have media.
   if (!player.isPlaying && newImages.length > 0) {
-    const previewImage = playerCard.querySelector('.preview-image-1');
     const placeholder = playerCard.querySelector('.preview-placeholder');
     const currentImagePath = newImages[Math.min(player.currentIndex, newImages.length - 1)];
 
-    previewImage.src = `file://${currentImagePath}`;
-    previewImage.classList.add('visible');
+    showPreviewMedia(playerCard, 0, currentImagePath);
     placeholder.style.display = 'none';
   }
 
@@ -1541,39 +1546,101 @@ function showPlayerNotification(playerCard, message, type = 'info') {
   }, 3000);
 }
 
+function isVideoPath(mediaPath) {
+  const extension = mediaPath.slice(mediaPath.lastIndexOf('.')).toLowerCase();
+  return VIDEO_EXTENSIONS.has(extension);
+}
+
+function getPreviewMedia(playerCard, slot, isVideo) {
+  return playerCard.querySelector(
+    `.${isVideo ? 'preview-video' : 'preview-image'}[data-slot="${slot}"]`
+  );
+}
+
+function setPreviewMediaSource(media, mediaPath) {
+  media.dataset.mediaPath = mediaPath;
+  media.src = `file://${mediaPath}`;
+  if (media.tagName === 'VIDEO') {
+    media.currentTime = 0;
+    media.load();
+  }
+}
+
+function showPreviewMedia(playerCard, slot, mediaPath) {
+  const media = getPreviewMedia(playerCard, slot, isVideoPath(mediaPath));
+  if (!media) return null;
+
+  playerCard.querySelectorAll(`.preview-media[data-slot="${slot}"]`).forEach((otherMedia) => {
+    if (otherMedia === media) return;
+    if (otherMedia.tagName === 'VIDEO') otherMedia.pause();
+    otherMedia.classList.remove('visible', 'fade');
+  });
+  setPreviewMediaSource(media, mediaPath);
+  media.classList.remove('fade');
+  media.classList.add('visible');
+  return media;
+}
+
+function advanceCompletedVideo(playerId, mediaPath) {
+  const player = players[playerId];
+  const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+  if (!player || !playerCard || !player.isPlaying || player.activeMediaPath !== mediaPath) return;
+
+  player.activeMediaPath = null;
+  playNextImage(playerId, playerCard);
+}
+
 function playNextImage(playerId, playerCard) {
   const player = players[playerId];
 
   if (!player.isPlaying || player.images.length === 0) return;
 
   const imagePath = player.images[player.currentIndex];
+  const isVideo = isVideoPath(imagePath);
   const { transitionType, duration, displayTime } = getEffectiveTransitionSettings(playerCard);
   const scaleFill = playerCard.querySelector('.scale-fill-checkbox').checked;
+  player.intervalId = null;
+  player.activeMediaPath = isVideo ? imagePath : null;
 
-  // Get both preview images
-  const previewImages = playerCard.querySelectorAll('.preview-image');
-  const currentImage = previewImages[player.currentImageIndex];
+  // Alternate between two preview layers so images and videos can crossfade alike.
+  const currentImage = playerCard.querySelector('.preview-media.visible');
   const nextImageIndex = (player.currentImageIndex + 1) % 2;
-  const nextImage = previewImages[nextImageIndex];
+  const nextImage = getPreviewMedia(playerCard, nextImageIndex, isVideo);
+  if (!nextImage) return;
 
-  // Apply scale setting to both images
-  currentImage.style.objectFit = scaleFill ? 'cover' : 'contain';
+  // Apply scale setting to both media layers.
+  if (currentImage) currentImage.style.objectFit = scaleFill ? 'cover' : 'contain';
   nextImage.style.objectFit = scaleFill ? 'cover' : 'contain';
+  playerCard.querySelectorAll(`.preview-media[data-slot="${nextImageIndex}"]`).forEach((media) => {
+    if (media === nextImage) return;
+    if (media.tagName === 'VIDEO') media.pause();
+    media.classList.remove('visible', 'fade');
+  });
+
+  const playVideo = () => {
+    if (!isVideo) return;
+    nextImage.onended = () => {
+      if (nextImage.dataset.mediaPath !== imagePath) return;
+      advanceCompletedVideo(playerId, imagePath);
+    };
+    nextImage.play().catch((error) => console.error(`Unable to play video ${imagePath}:`, error));
+  };
 
   if (transitionType === 'crossfade') {
     // For first image, just show it without transition
     if (player.isFirstImage) {
-      nextImage.src = `file://${imagePath}`;
+      setPreviewMediaSource(nextImage, imagePath);
       nextImage.classList.remove('fade');
       nextImage.classList.add('visible');
       player.currentImageIndex = nextImageIndex;
       player.isFirstImage = false;
+      playVideo();
     } else {
       // Subsequent images: crossfade
       const performCrossfade = () => {
         // Set the transition duration dynamically
         nextImage.style.transitionDuration = `${duration}s`;
-        currentImage.style.transitionDuration = `${duration}s`;
+        if (currentImage) currentImage.style.transitionDuration = `${duration}s`;
 
         // Force reflow
         void nextImage.offsetHeight;
@@ -1581,15 +1648,17 @@ function playNextImage(playerId, playerCard) {
         // Use requestAnimationFrame to ensure smooth transition
         requestAnimationFrame(() => {
           // Add fade class and toggle visibility
-          currentImage.classList.add('fade');
+          if (currentImage) currentImage.classList.add('fade');
           nextImage.classList.add('fade');
 
           requestAnimationFrame(() => {
-            currentImage.classList.remove('visible');
+            if (currentImage) currentImage.classList.remove('visible');
             nextImage.classList.add('visible');
+            playVideo();
 
             // Update index after transition completes
             setTimeout(() => {
+              if (currentImage && currentImage.tagName === 'VIDEO') currentImage.pause();
               player.currentImageIndex = nextImageIndex;
             }, duration * 1000);
           });
@@ -1598,33 +1667,38 @@ function playNextImage(playerId, playerCard) {
 
       // Ensure next image starts hidden
       nextImage.classList.remove('visible', 'fade');
-      nextImage.src = `file://${imagePath}`;
+      setPreviewMediaSource(nextImage, imagePath);
 
-      // Handle both onload (new image) and already loaded (cached image)
-      if (nextImage.complete && nextImage.naturalHeight !== 0) {
+      // Wait until the incoming media is ready for a clean transition.
+      if (!isVideo && nextImage.complete && nextImage.naturalHeight !== 0) {
+        performCrossfade();
+      } else if (isVideo && nextImage.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         performCrossfade();
       } else {
-        nextImage.onload = () => {
-          performCrossfade();
-        };
+        nextImage[isVideo ? 'onloadeddata' : 'onload'] = performCrossfade;
       }
     }
   } else {
     // Cut transition (instant)
-    currentImage.classList.remove('fade', 'visible');
+    if (currentImage) {
+      if (currentImage.tagName === 'VIDEO') currentImage.pause();
+      currentImage.classList.remove('fade', 'visible');
+    }
     nextImage.classList.remove('fade');
-    currentImage.style.transitionDuration = '0s';
+    if (currentImage) currentImage.style.transitionDuration = '0s';
     nextImage.style.transitionDuration = '0s';
-    nextImage.src = `file://${imagePath}`;
+    setPreviewMediaSource(nextImage, imagePath);
     nextImage.classList.add('visible');
     player.currentImageIndex = nextImageIndex;
     player.isFirstImage = false;
+    playVideo();
   }
 
   // Send to output window
   ipcRenderer.send('update-output-image', {
     playerId,
     imagePath,
+    mediaType: isVideo ? 'video' : 'image',
     transition: transitionType,
     duration,
     scaleFill,
@@ -1634,9 +1708,11 @@ function playNextImage(playerId, playerCard) {
   player.currentIndex = (player.currentIndex + 1) % player.images.length;
   schedulePlayerViewSync(playerId, playerCard);
 
-  // Schedule next image (display time only, transition happens during next cycle)
-  const nextDelay = displayTime * 1000;
-  player.intervalId = setTimeout(() => playNextImage(playerId, playerCard), nextDelay);
+  // Images use the configured display time; videos advance from their native ended event.
+  if (!isVideo) {
+    const nextDelay = displayTime * 1000;
+    player.intervalId = setTimeout(() => playNextImage(playerId, playerCard), nextDelay);
+  }
 }
 
 function updatePlayerStatus(playerCard, status) {
@@ -2575,12 +2651,10 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
 
     setPlayToggleState(playerCard, false, true);
 
-    // Show preview of first image
-    const preview = playerCard.querySelector('.preview-image-1');
+    // Show preview of the first media item.
     const placeholder = playerCard.querySelector('.preview-placeholder');
-    if (preview && result.images.length > 0) {
-      preview.src = `file://${result.images[0]}`;
-      preview.classList.add('visible');
+    if (result.images.length > 0) {
+      showPreviewMedia(playerCard, 0, result.images[0]);
       if (placeholder) {
         placeholder.style.display = 'none';
       }

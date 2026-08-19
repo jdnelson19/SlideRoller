@@ -24,7 +24,7 @@
         height: 100%;
       }
 
-      .output-image {
+      .output-media {
         position: absolute;
         top: 0;
         left: 0;
@@ -38,19 +38,21 @@
         -webkit-user-drag: none;
       }
 
-      .output-image.visible {
+      .output-media.visible {
         opacity: 1;
       }
 
-      .output-image.fade {
+      .output-media.fade {
         transition: opacity 1s ease-in-out;
       }
     </style>
   </head>
   <body>
     <div class="output-container">
-      <img class="output-image" id="image1" src="" alt="" />
-      <img class="output-image" id="image2" src="" alt="" />
+      <img class="output-media output-image" id="image1" data-slot="0" src="" alt="" />
+      <img class="output-media output-image" id="image2" data-slot="1" src="" alt="" />
+      <video class="output-media output-video" id="video1" data-slot="0" preload="auto"></video>
+      <video class="output-media output-video" id="video2" data-slot="1" preload="auto"></video>
     </div>
 
     <script src="output.js"></script>
