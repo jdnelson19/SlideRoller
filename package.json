@@ -54,6 +54,7 @@
     "mac": {
       "category": "public.app-category.video",
       "hardenedRuntime": true,
+      "notarize": false,
       "gatekeeperAssess": false,
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
