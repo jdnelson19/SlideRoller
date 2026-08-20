@@ -100,6 +100,8 @@ When a tag matching `v*.*.*` is pushed, CI:
 Set these repository secrets for CI signing/notarization:
 
 - `CSC_NAME`
+- `CSC_LINK` - base64-encoded Developer ID Application `.p12` certificate
+- `CSC_KEY_PASSWORD` - password used when exporting that `.p12` certificate
 - `APPLE_ID`
 - `APPLE_APP_SPECIFIC_PASSWORD`
 - `APPLE_TEAM_ID`
