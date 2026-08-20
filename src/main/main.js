@@ -4,6 +4,7 @@ const fs = require('fs');
 const chokidar = require('chokidar');
 const Store = require('electron-store');
 const sharp = require('sharp');
+const ffmpegStatic = require('ffmpeg-static');
 const decklink = require('./decklink');
 
 const scheduleStore = new Store({ name: 'player-schedules' });
@@ -17,6 +18,7 @@ let decklinkOutputs = {}; // Track DeckLink output selection per player
 let decklinkSettings = { videoMode: null };
 let decklinkFrameJobs = {};
 let decklinkFramePending = {};
+let decklinkVideoProcesses = {};
 let decklinkActiveModes = {};
 let decklinkTestPatternTimers = {};
 let quitConfirmed = false;
@@ -529,6 +531,39 @@ function queueDeckLinkFrame(playerId, payload) {
       queueDeckLinkFrame(playerId, pending);
     }
   });
+}
+
+function getFfmpegPath() {
+  return ffmpegStatic.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+}
+
+function stopDeckLinkVideo(playerId) {
+  const activeProcess = decklinkVideoProcesses[playerId];
+  delete decklinkVideoProcesses[playerId];
+
+  if (activeProcess) {
+    const result = decklink.stopVideo(activeProcess.deviceIndex);
+    if (!result?.ok) {
+      console.warn('DeckLink video stop failed:', result?.error);
+    }
+  }
+}
+
+function startDeckLinkVideo(playerId, { deviceIndex, videoPath, scaleFill }) {
+  stopDeckLinkVideo(playerId);
+  const result = decklink.startVideo({
+    deviceIndex,
+    ffmpegPath: getFfmpegPath(),
+    videoPath,
+    scaleFill,
+  });
+
+  if (!result?.ok) {
+    console.warn('DeckLink video decoder start failed:', result?.error);
+    return;
+  }
+
+  decklinkVideoProcesses[playerId] = { deviceIndex };
 }
 
 function parseImagePathFromSrc(src) {
@@ -1439,15 +1474,21 @@ ipcMain.on(
       });
     }
 
-    if (decklinkOutputs[playerId] && mediaType !== 'video') {
-      queueDeckLinkFrame(playerId, {
-        deviceIndex: decklinkOutputs[playerId].index,
-        imagePath,
-        scaleFill,
-      });
+    if (decklinkOutputs[playerId]) {
+      const deviceIndex = decklinkOutputs[playerId].index;
+      if (mediaType === 'video') {
+        startDeckLinkVideo(playerId, { deviceIndex, videoPath: imagePath, scaleFill });
+      } else {
+        stopDeckLinkVideo(playerId);
+        queueDeckLinkFrame(playerId, { deviceIndex, imagePath, scaleFill });
+      }
     }
   }
 );
+
+ipcMain.on('stop-decklink-video', (event, { playerId }) => {
+  stopDeckLinkVideo(playerId);
+});
 
 ipcMain.on('output-video-ended', (event, { playerId, mediaPath }) => {
   const outputWindow = outputWindows[playerId];

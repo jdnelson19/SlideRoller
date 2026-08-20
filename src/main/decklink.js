@@ -85,4 +85,20 @@ module.exports = {
       return { ok: false, error: error.message || 'DeckLink frame send failed.' };
     }
   },
+  startVideo({ deviceIndex, ffmpegPath, videoPath, scaleFill }) {
+    try {
+      const addon = loadAddon();
+      return addon.startVideo(deviceIndex, ffmpegPath, videoPath, scaleFill);
+    } catch (error) {
+      return { ok: false, error: error.message || 'DeckLink video output start failed.' };
+    }
+  },
+  stopVideo(deviceIndex) {
+    try {
+      const addon = loadAddon();
+      return addon.stopVideo(deviceIndex);
+    } catch (error) {
+      return { ok: false, error: error.message || 'DeckLink video output stop failed.' };
+    }
+  },
 };

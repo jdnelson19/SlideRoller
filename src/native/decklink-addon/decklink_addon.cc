@@ -3,7 +3,10 @@
 #include <cstdlib>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
+#include <cstdio>
+#include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -213,8 +216,14 @@ struct OutputContext
   double fps = 59.94;
   std::atomic<bool> running{false};
   std::thread thread;
+  std::thread videoThread;
   std::mutex frameMutex;
   std::vector<uint8_t> frame;
+  std::atomic<bool> videoRunning{false};
+  std::atomic<bool> videoReady{false};
+  std::mutex videoMutex;
+  std::condition_variable videoCondition;
+  std::deque<std::vector<uint8_t>> videoFrames;
 };
 
 std::mutex gOutputsMutex;
@@ -478,6 +487,15 @@ void OutputThread(std::shared_ptr<OutputContext> context)
       {
         bool copied = false;
         {
+          std::lock_guard<std::mutex> videoLock(context->videoMutex);
+          if (context->videoReady.load() && !context->videoFrames.empty())
+          {
+            context->frame.swap(context->videoFrames.front());
+            context->videoFrames.pop_front();
+            context->videoCondition.notify_one();
+          }
+        }
+        {
           std::lock_guard<std::mutex> lock(context->frameMutex);
           if (!context->frame.empty())
           {
@@ -504,8 +522,89 @@ void OutputThread(std::shared_ptr<OutputContext> context)
 
     context->output->DisplayVideoFrameSync(frame);
     frame->Release();
-    std::this_thread::sleep_for(frameDuration);
   }
+}
+
+std::string ShellQuote(const std::string& value)
+{
+  std::string quoted = "'";
+  for (const char character : value)
+  {
+    if (character == '\'')
+    {
+      quoted += "'\\\"'\\\"'";
+    }
+    else
+    {
+      quoted += character;
+    }
+  }
+  quoted += "'";
+  return quoted;
+}
+
+void VideoDecodeThread(std::shared_ptr<OutputContext> context, const std::string& ffmpegPath, const std::string& videoPath, bool scaleFill)
+{
+  if (!context)
+  {
+    return;
+  }
+
+  const std::string scaleFilter = scaleFill
+    ? "scale=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":force_original_aspect_ratio=increase,crop=" + std::to_string(context->width) + ":" + std::to_string(context->height)
+    : "scale=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":force_original_aspect_ratio=decrease,pad=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":(ow-iw)/2:(oh-ih)/2:black";
+  const std::string command = ShellQuote(ffmpegPath) + " -hide_banner -loglevel error -re -i " + ShellQuote(videoPath) + " -an -vf " + ShellQuote(scaleFilter + ",fps=fps=" + std::to_string(context->fps)) + " -pix_fmt uyvy422 -f rawvideo pipe:1";
+  FILE* decoder = popen(command.c_str(), "r");
+  if (!decoder)
+  {
+    context->videoRunning.store(false);
+    return;
+  }
+
+  const size_t frameSize = static_cast<size_t>(context->width) * static_cast<size_t>(context->height) * static_cast<size_t>(context->bytesPerPixel);
+  constexpr size_t kVideoPrebufferFrames = 3;
+  constexpr size_t kMaxQueuedVideoFrames = 8;
+  std::vector<uint8_t> decodedFrame(frameSize);
+
+  while (context->running.load() && context->videoRunning.load())
+  {
+    size_t bytesRead = 0;
+    while (bytesRead < frameSize && context->running.load() && context->videoRunning.load())
+    {
+      const size_t result = fread(decodedFrame.data() + bytesRead, 1, frameSize - bytesRead, decoder);
+      if (result == 0)
+      {
+        break;
+      }
+      bytesRead += result;
+    }
+
+    if (bytesRead != frameSize)
+    {
+      break;
+    }
+
+    {
+      std::unique_lock<std::mutex> lock(context->videoMutex);
+      context->videoCondition.wait(lock, [&context]() {
+        return !context->running.load() || !context->videoRunning.load() || context->videoFrames.size() < kMaxQueuedVideoFrames;
+      });
+      if (!context->running.load() || !context->videoRunning.load())
+      {
+        break;
+      }
+      context->videoFrames.push_back(std::move(decodedFrame));
+      if (context->videoFrames.size() >= kVideoPrebufferFrames)
+      {
+        context->videoReady.store(true);
+      }
+    }
+    decodedFrame.resize(frameSize);
+  }
+
+  pclose(decoder);
+  context->videoRunning.store(false);
+  context->videoCondition.notify_all();
 }
 
 bool StopOutputInternal(int deviceIndex)
@@ -525,6 +624,12 @@ bool StopOutputInternal(int deviceIndex)
   if (context)
   {
     context->running.store(false);
+    context->videoRunning.store(false);
+    context->videoCondition.notify_all();
+    if (context->videoThread.joinable())
+    {
+      context->videoThread.join();
+    }
     if (context->thread.joinable())
     {
       context->thread.join();
@@ -779,6 +884,90 @@ Napi::Object SendFrame(const Napi::CallbackInfo& info)
   result.Set("ok", Napi::Boolean::New(env, true));
   return result;
 }
+
+Napi::Object StartVideo(const Napi::CallbackInfo& info)
+{
+  Napi::Env env = info.Env();
+  Napi::Object result = Napi::Object::New(env);
+
+  if (info.Length() < 4 || !info[0].IsNumber() || !info[1].IsString() || !info[2].IsString() || !info[3].IsBoolean())
+  {
+    result.Set("ok", Napi::Boolean::New(env, false));
+    result.Set("error", Napi::String::New(env, "Expected device index, FFmpeg path, video path, and scale fill."));
+    return result;
+  }
+
+  const int deviceIndex = info[0].As<Napi::Number>().Int32Value();
+  const std::string ffmpegPath = info[1].As<Napi::String>().Utf8Value();
+  const std::string videoPath = info[2].As<Napi::String>().Utf8Value();
+  const bool scaleFill = info[3].As<Napi::Boolean>().Value();
+
+  std::shared_ptr<OutputContext> context;
+  {
+    std::lock_guard<std::mutex> lock(gOutputsMutex);
+    auto it = gOutputs.find(deviceIndex);
+    if (it == gOutputs.end())
+    {
+      result.Set("ok", Napi::Boolean::New(env, false));
+      result.Set("error", Napi::String::New(env, "Output not started."));
+      return result;
+    }
+    context = it->second;
+  }
+
+  if (context->videoThread.joinable())
+  {
+    context->videoRunning.store(false);
+    context->videoCondition.notify_all();
+    context->videoThread.join();
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(context->videoMutex);
+    context->videoFrames.clear();
+  }
+  context->videoReady.store(false);
+  context->videoRunning.store(true);
+  context->videoThread = std::thread(VideoDecodeThread, context, ffmpegPath, videoPath, scaleFill);
+  result.Set("ok", Napi::Boolean::New(env, true));
+  return result;
+}
+
+Napi::Object StopVideo(const Napi::CallbackInfo& info)
+{
+  Napi::Env env = info.Env();
+  Napi::Object result = Napi::Object::New(env);
+
+  if (info.Length() < 1 || !info[0].IsNumber())
+  {
+    result.Set("ok", Napi::Boolean::New(env, false));
+    result.Set("error", Napi::String::New(env, "Expected device index."));
+    return result;
+  }
+
+  const int deviceIndex = info[0].As<Napi::Number>().Int32Value();
+  std::shared_ptr<OutputContext> context;
+  {
+    std::lock_guard<std::mutex> lock(gOutputsMutex);
+    auto it = gOutputs.find(deviceIndex);
+    if (it == gOutputs.end())
+    {
+      result.Set("ok", Napi::Boolean::New(env, false));
+      result.Set("error", Napi::String::New(env, "Output not started."));
+      return result;
+    }
+    context = it->second;
+  }
+
+  context->videoRunning.store(false);
+  if (context->videoThread.joinable())
+  {
+    context->videoThread.join();
+  }
+
+  result.Set("ok", Napi::Boolean::New(env, true));
+  return result;
+}
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports)
@@ -788,6 +977,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
   exports.Set("startOutput", Napi::Function::New(env, StartOutput));
   exports.Set("stopOutput", Napi::Function::New(env, StopOutput));
   exports.Set("sendFrame", Napi::Function::New(env, SendFrame));
+  exports.Set("startVideo", Napi::Function::New(env, StartVideo));
+  exports.Set("stopVideo", Napi::Function::New(env, StopVideo));
   return exports;
 }
 

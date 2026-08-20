@@ -1451,6 +1451,7 @@ function stopPlayer(playerId, playerCard) {
 
   player.isPlaying = false;
   player.activeMediaPath = null;
+  ipcRenderer.send('stop-decklink-video', { playerId });
   player.isFirstImage = true; // Reset for next playback
 
   if (player.intervalId) {

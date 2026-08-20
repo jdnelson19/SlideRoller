@@ -21,7 +21,7 @@ Slide Roller is a macOS Electron app for running up to 4 simultaneous image and 
   - Header status indicator showing whether schedules are active
 - Output routing:
   - Extended monitor fullscreen output windows for images and videos
-  - Blackmagic DeckLink output via native addon for image slides
+  - Blackmagic DeckLink output via native addon for image and video slides
 - Built-in Player Controls Help modal
 - Menu action to reset all saved player/schedule state
 
@@ -118,8 +118,8 @@ Tags matching `v*.*.*` trigger a GitHub Action build and publish the release ass
 To publish downloadable installers:
 
 ```bash
-git tag v1.3.0
-git push origin v1.3.0
+git tag v1.3.1
+git push origin v1.3.1
 ```
 
 When the tag is pushed, GitHub Actions builds macOS artifacts and attaches them to the GitHub Release.
@@ -132,8 +132,7 @@ For a manual release, upload these files from the dist directory to a GitHub Rel
 
 ## DeckLink Notes
 
-DeckLink output uses a native addon in src/native/decklink-addon.
-It currently renders image slides only; video files are not sent through the DeckLink output path.
+DeckLink output uses a native addon in src/native/decklink-addon. Video playback is decoded with the bundled FFmpeg binary and sent as live frames at the selected DeckLink output frame rate.
 
 Typical local setup:
 
