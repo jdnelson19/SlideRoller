@@ -676,7 +676,14 @@ body.always-on-top .menu-bar {
   font-size: clamp(10px, 0.75vw, 12px);
 }
 
-.folder-btn:hover {
+.folder-btn:disabled {
+  background: #2a2a2a;
+  color: #777;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.folder-btn:not(:disabled):hover {
   background: #4a4a4a;
 }
 
