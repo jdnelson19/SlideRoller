@@ -157,6 +157,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     await populateMultiviewOutputOptions();
   });
 
+  // Main process retried a DeckLink connection that wasn't ready at launch; sync the UI.
+  ipcRenderer.on('decklink-outputs-restored', async (event, { assignments }) => {
+    await loadOutputOptions();
+    (assignments || []).forEach(({ playerId, deviceIndex }) => {
+      if (!Number.isInteger(deviceIndex)) return;
+      const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+      const outputSelect = playerCard?.querySelector('.output-select');
+      const optionValue = `decklink:${deviceIndex}`;
+      if (outputSelect && outputSelect.querySelector(`option[value="${optionValue}"]`)) {
+        outputSelect.value = optionValue;
+      }
+    });
+  });
+
   ipcRenderer.on('open-output-settings', () => {
     openOutputSettingsModal();
   });

@@ -5,3 +5,4 @@ Blackmagic DeckLink SDK 15.3/
 *.log
 .DS_Store
 .env
+.vscode/settings.json

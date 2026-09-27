@@ -321,15 +321,8 @@ async function stopDeckLinkOutputIfUnused(deviceIndex) {
   }
 }
 
-async function restoreDeckLinkOutputsFromSavedState() {
-  const result = decklink.listDevices();
-  if (!result.ok || !Array.isArray(result.devices) || result.devices.length === 0) {
-    console.log('No DeckLink devices available for startup restore.');
-    return;
-  }
-
-  const assignedDeviceIndices = new Set();
-
+function getSavedDeckLinkAssignments() {
+  const assignments = [];
   for (let playerId = 1; playerId <= 4; playerId += 1) {
     const state = playerStateStore.get(`player${playerId}State`, null);
     const outputSelection =
@@ -340,10 +333,42 @@ async function restoreDeckLinkOutputsFromSavedState() {
     }
 
     const deviceIndex = Number.parseInt(outputSelection.split(':')[1], 10);
+    assignments.push({ playerId, deviceIndex });
+  }
+  return assignments;
+}
+
+// Attempts to restore any saved DeckLink assignments that aren't already active.
+// Returns the player IDs still unresolved so the caller can decide whether to retry
+// (e.g. the DeckLink driver/service hasn't finished starting up yet).
+async function restoreDeckLinkOutputsFromSavedState() {
+  const assignments = getSavedDeckLinkAssignments();
+  if (assignments.length === 0) {
+    return { unresolvedPlayerIds: [], restoredPlayerIds: [] };
+  }
+
+  const result = decklink.listDevices();
+  if (!result.ok || !Array.isArray(result.devices) || result.devices.length === 0) {
+    console.log('No DeckLink devices available for startup restore.');
+    return { unresolvedPlayerIds: assignments.map((a) => a.playerId), restoredPlayerIds: [] };
+  }
+
+  const assignedDeviceIndices = new Set();
+  const unresolvedPlayerIds = [];
+  const restoredPlayerIds = [];
+
+  for (const { playerId, deviceIndex } of assignments) {
+    if (decklinkOutputs[playerId] && decklinkOutputs[playerId].index === deviceIndex) {
+      // Already restored on a previous attempt.
+      assignedDeviceIndices.add(deviceIndex);
+      continue;
+    }
+
     if (!Number.isInteger(deviceIndex) || deviceIndex < 0 || deviceIndex >= result.devices.length) {
       console.warn(
-        `Skipping DeckLink restore for player ${playerId}: invalid index in saved state (${outputSelection}).`
+        `Skipping DeckLink restore for player ${playerId}: invalid or unavailable index in saved state (device ${deviceIndex}).`
       );
+      unresolvedPlayerIds.push(playerId);
       continue;
     }
 
@@ -360,6 +385,7 @@ async function restoreDeckLinkOutputsFromSavedState() {
         `Failed to restore DeckLink output for player ${playerId} on device ${deviceIndex}:`,
         startResult.error
       );
+      unresolvedPlayerIds.push(playerId);
       continue;
     }
 
@@ -369,11 +395,50 @@ async function restoreDeckLinkOutputsFromSavedState() {
     };
     assignedDeviceIndices.add(deviceIndex);
     startDeckLinkTestPattern(deviceIndex);
+    restoredPlayerIds.push(playerId);
 
     console.log(
       `Restored DeckLink output for player ${playerId}: device ${deviceIndex} (${result.devices[deviceIndex]}).`
     );
   }
+
+  return { unresolvedPlayerIds, restoredPlayerIds };
+}
+
+// Retry delays for DeckLink startup restore, covering the case where Slide Roller
+// launches before the DeckLink driver/service has finished initializing on reboot.
+const DECKLINK_RESTORE_RETRY_DELAYS_MS = [10000, 20000, 30000];
+
+function scheduleDeckLinkRestoreRetry(attemptIndex = 0) {
+  if (attemptIndex >= DECKLINK_RESTORE_RETRY_DELAYS_MS.length) {
+    console.warn('Giving up on DeckLink output restore after repeated retries.');
+    return;
+  }
+
+  setTimeout(async () => {
+    try {
+      const { unresolvedPlayerIds, restoredPlayerIds } = await restoreDeckLinkOutputsFromSavedState();
+
+      if (restoredPlayerIds.length > 0 && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('decklink-outputs-restored', {
+          assignments: restoredPlayerIds.map((playerId) => ({
+            playerId,
+            deviceIndex: decklinkOutputs[playerId]?.index,
+          })),
+        });
+      }
+
+      if (unresolvedPlayerIds.length > 0) {
+        console.log(
+          `Retrying DeckLink output restore for players: ${unresolvedPlayerIds.join(', ')}`
+        );
+        scheduleDeckLinkRestoreRetry(attemptIndex + 1);
+      }
+    } catch (error) {
+      console.warn('DeckLink startup restore retry failed:', error);
+      scheduleDeckLinkRestoreRetry(attemptIndex + 1);
+    }
+  }, DECKLINK_RESTORE_RETRY_DELAYS_MS[attemptIndex]);
 }
 
 async function sendDeckLinkFrame(deviceIndex, imagePath, scaleFill) {
@@ -1045,9 +1110,19 @@ function broadcastDisplaysChanged() {
 app.whenReady().then(() => {
   createWindow();
 
-  restoreDeckLinkOutputsFromSavedState().catch((error) => {
-    console.warn('DeckLink startup restore failed:', error);
-  });
+  restoreDeckLinkOutputsFromSavedState()
+    .then(({ unresolvedPlayerIds }) => {
+      if (unresolvedPlayerIds.length > 0) {
+        console.log(
+          `DeckLink output restore incomplete for players: ${unresolvedPlayerIds.join(', ')}. Will retry (device/driver may still be initializing).`
+        );
+        scheduleDeckLinkRestoreRetry(0);
+      }
+    })
+    .catch((error) => {
+      console.warn('DeckLink startup restore failed:', error);
+      scheduleDeckLinkRestoreRetry(0);
+    });
 
   screen.on('display-added', broadcastDisplaysChanged);
   screen.on('display-removed', (event, removedDisplay) => {
