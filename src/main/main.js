@@ -1,4 +1,13 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, Menu, shell } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  screen,
+  Menu,
+  shell,
+  powerMonitor,
+} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
@@ -407,7 +416,8 @@ async function restoreDeckLinkOutputsFromSavedState() {
 
 // Retry delays for DeckLink startup restore, covering the case where Slide Roller
 // launches before the DeckLink driver/service has finished initializing on reboot.
-const DECKLINK_RESTORE_RETRY_DELAYS_MS = [10000, 20000, 30000];
+// Spans roughly five minutes, since a cold boot can take a while to bring the driver up.
+const DECKLINK_RESTORE_RETRY_DELAYS_MS = [5000, 10000, 15000, 30000, 30000, 60000, 60000, 60000];
 
 function scheduleDeckLinkRestoreRetry(attemptIndex = 0) {
   if (attemptIndex >= DECKLINK_RESTORE_RETRY_DELAYS_MS.length) {
@@ -763,9 +773,23 @@ function createWindow() {
       enableRemoteModule: true,
     },
     title: 'Slide Roller',
+    // The window close button is disabled so the app can't be shut down by accident;
+    // quitting goes through the confirmed Quit (or a force quit).
+    closable: false,
   });
 
   mainWindow.loadFile('src/renderer/index.html');
+
+  mainWindow.on('close', (event) => {
+    if (!quitConfirmed) {
+      event.preventDefault();
+    }
+  });
+
+  // Windows restart/shutdown/log off: don't block the OS with the quit prompt.
+  mainWindow.on('session-end', () => {
+    quitConfirmed = true;
+  });
 
   const template = [
     ...(process.platform === 'darwin'
@@ -1124,6 +1148,11 @@ app.whenReady().then(() => {
       scheduleDeckLinkRestoreRetry(0);
     });
 
+  // macOS/Linux restart or shutdown: skip the quit prompt so it doesn't cancel the restart.
+  powerMonitor.on('shutdown', () => {
+    quitConfirmed = true;
+  });
+
   screen.on('display-added', broadcastDisplaysChanged);
   screen.on('display-removed', (event, removedDisplay) => {
     handleDisplayRemoved(removedDisplay);
@@ -1163,6 +1192,11 @@ app.on('before-quit', (event) => {
     }
 
     quitConfirmed = true;
+  }
+
+  // A non-closable window would otherwise cancel the quit.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setClosable(true);
   }
 
   const activeDevices = getActiveDeckLinkDeviceIndices();

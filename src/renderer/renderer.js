@@ -71,6 +71,11 @@ const multiviewUi = {
   gridSelect: null,
 };
 
+// Saved output selections that haven't been applied to the dropdown yet (during startup, or
+// while the DeckLink driver is still coming up). savePlayerState persists these instead of the
+// dropdown's empty value so a restart doesn't wipe the configured output.
+const pendingOutputRestores = {};
+
 function formatDebugArg(value) {
   if (value instanceof Error) {
     return value.stack || value.message || String(value);
@@ -167,8 +172,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       const optionValue = `decklink:${deviceIndex}`;
       if (outputSelect && outputSelect.querySelector(`option[value="${optionValue}"]`)) {
         outputSelect.value = optionValue;
+        delete pendingOutputRestores[playerId];
+        updatePlayerStatus(playerCard, players[playerId].isPlaying ? 'playing' : 'stopped');
+
+        // Replace the test pattern with the slide already on screen. Videos pick up on the
+        // next item rather than restarting out of sync with the preview.
+        const visibleMedia = playerCard.querySelector('.preview-media.visible');
+        const imagePath = visibleMedia?.dataset.mediaPath;
+        if (players[playerId].isPlaying && imagePath && !isVideoPath(imagePath)) {
+          ipcRenderer.send('update-output-image', {
+            playerId,
+            imagePath,
+            mediaType: 'image',
+            transition: 'cut',
+            duration: 0,
+            scaleFill: playerCard.querySelector('.scale-fill-checkbox')?.checked || false,
+          });
+        }
       }
     });
+    await loadOutputOptions();
   });
 
   ipcRenderer.on('open-output-settings', () => {
@@ -1385,6 +1408,7 @@ function initializePlayers() {
     if (outputSelect) {
       outputSelect.addEventListener('change', async (e) => {
         try {
+          delete pendingOutputRestores[i];
           await handleOutputChange(i, e.target.value, playerCard);
           savePlayerState(i);
         } catch (error) {
@@ -2456,7 +2480,8 @@ function savePlayerState(playerId) {
     displayTime: playerCard.querySelector('.timing-slider')?.value || 5,
     scaleFill: playerCard.querySelector('.scale-fill-checkbox')?.checked || false,
     backgroundColor: playerCard.dataset.backgroundColor || '#000000',
-    outputSelection: playerCard.querySelector('.output-select')?.value || '',
+    outputSelection:
+      pendingOutputRestores[playerId] ?? (playerCard.querySelector('.output-select')?.value || ''),
     autoStart: playerCard.querySelector('.auto-start-checkbox')?.checked || false,
     customTitle: playerCard.dataset.customTitle || '',
   };
@@ -2509,6 +2534,10 @@ async function loadPlayerState(playerId) {
   if (!persistedState) return;
 
   const { state, changed } = migrateLegacyPlayerState(persistedState);
+
+  if (state && typeof state.outputSelection === 'string' && state.outputSelection) {
+    pendingOutputRestores[playerId] = state.outputSelection;
+  }
 
   // Keep localStorage in sync for downstream restore paths
   try {
@@ -2613,8 +2642,9 @@ async function restorePlayerOutput(playerId) {
     (state.outputSelection.startsWith('display:') || state.outputSelection.startsWith('decklink:'))
   ) {
     if (!outputSelect.querySelector(`option[value="${state.outputSelection}"]`)) {
+      // Keep it pending: a DeckLink output may still be restored once the driver is ready.
       console.warn(
-        `Skipping output restore for player ${playerId}: option ${state.outputSelection} is not available.`
+        `Deferring output restore for player ${playerId}: option ${state.outputSelection} is not available yet.`
       );
       return;
     }
@@ -2622,6 +2652,11 @@ async function restorePlayerOutput(playerId) {
     outputSelect.value = state.outputSelection;
     // Re-trigger the output setup if it was previously configured
     await handleOutputChange(playerId, state.outputSelection, playerCard);
+    if (outputSelect.value === state.outputSelection) {
+      delete pendingOutputRestores[playerId];
+    }
+  } else {
+    delete pendingOutputRestores[playerId];
   }
 }
 
