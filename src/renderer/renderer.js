@@ -76,6 +76,10 @@ const multiviewUi = {
 // dropdown's empty value so a restart doesn't wipe the configured output.
 const pendingOutputRestores = {};
 
+// Saved playback (running/stopped and the item on air) that hasn't been resumed yet. Like
+// pendingOutputRestores, savePlayerState persists these so startup saves don't overwrite them.
+const pendingPlaybackRestores = {};
+
 function formatDebugArg(value) {
   if (value instanceof Error) {
     return value.stack || value.message || String(value);
@@ -175,20 +179,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         delete pendingOutputRestores[playerId];
         updatePlayerStatus(playerCard, players[playerId].isPlaying ? 'playing' : 'stopped');
 
-        // Replace the test pattern with the slide already on screen. Videos pick up on the
-        // next item rather than restarting out of sync with the preview.
-        const visibleMedia = playerCard.querySelector('.preview-media.visible');
-        const imagePath = visibleMedia?.dataset.mediaPath;
-        if (players[playerId].isPlaying && imagePath && !isVideoPath(imagePath)) {
-          ipcRenderer.send('update-output-image', {
-            playerId,
-            imagePath,
-            mediaType: 'image',
-            transition: 'cut',
-            duration: 0,
-            scaleFill: playerCard.querySelector('.scale-fill-checkbox')?.checked || false,
-          });
-        }
+        // Replace the test pattern with the slide already on screen.
+        pushVisibleSlideToOutput(playerId, playerCard);
       }
     });
     await loadOutputOptions();
@@ -1290,6 +1282,7 @@ async function switchPlayerFolder(playerId, folderPath) {
 
   players[playerId].isFirstImage = true;
   players[playerId].currentIndex = 0;
+  players[playerId].lastPlayedMediaPath = null;
 
   await loadFolderFromPath(playerId, playerCard, folderPath);
   savePlayerState(playerId);
@@ -1445,6 +1438,7 @@ async function selectFolder(playerId, playerCard) {
     players[playerId].images = result.images;
     players[playerId].currentIndex = 0;
     players[playerId].folderPath = result.path;
+    players[playerId].lastPlayedMediaPath = null;
 
     // Update UI
     const folderPath = playerCard.querySelector('.folder-path');
@@ -1482,6 +1476,7 @@ function startPlayer(playerId, playerCard) {
   // Start playback
   playNextImage(playerId, playerCard);
   schedulePlayerViewSync(playerId, playerCard);
+  savePlayerState(playerId);
 }
 
 function stopPlayer(playerId, playerCard) {
@@ -1503,6 +1498,7 @@ function stopPlayer(playerId, playerCard) {
   setPlayToggleState(playerCard, false, player.images.length > 0);
   playerCard.querySelector('.folder-btn').disabled = false;
   schedulePlayerViewSync(playerId, playerCard);
+  savePlayerState(playerId);
 }
 
 function stopAllPlayers() {
@@ -1743,9 +1739,13 @@ function playNextImage(playerId, playerCard) {
     scaleFill,
   });
 
+  player.lastPlayedMediaPath = imagePath;
+
   // Move to next image
   player.currentIndex = (player.currentIndex + 1) % player.images.length;
   schedulePlayerViewSync(playerId, playerCard);
+  // Saved on every item so a restart (or crash) resumes on the slide that was on air.
+  savePlayerState(playerId, { quiet: true });
 
   // Images use the configured display time; videos advance from their native ended event.
   if (!isVideo) {
@@ -2469,9 +2469,14 @@ function hexToRgb(hex) {
 }
 
 // State persistence functions
-function savePlayerState(playerId) {
+function savePlayerState(playerId, { quiet = false } = {}) {
   const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
   if (!playerCard) return;
+
+  const playback = pendingPlaybackRestores[playerId] ?? {
+    isPlaying: players[playerId].isPlaying,
+    lastPlayedMediaPath: players[playerId].lastPlayedMediaPath || null,
+  };
 
   const state = {
     folderPath: players[playerId].folderPath,
@@ -2484,13 +2489,15 @@ function savePlayerState(playerId) {
       pendingOutputRestores[playerId] ?? (playerCard.querySelector('.output-select')?.value || ''),
     autoStart: playerCard.querySelector('.auto-start-checkbox')?.checked || false,
     customTitle: playerCard.dataset.customTitle || '',
+    isPlaying: playback.isPlaying,
+    lastPlayedMediaPath: playback.lastPlayedMediaPath,
   };
 
   localStorage.setItem(`player${playerId}State`, JSON.stringify(state));
   ipcRenderer.invoke('set-player-state', { playerId, state }).catch((error) => {
     console.error(`Failed to persist player ${playerId} state to main store:`, error);
   });
-  console.log(`Saved state for player ${playerId}`);
+  if (!quiet) console.log(`Saved state for player ${playerId}`);
 }
 
 async function getPersistedPlayerState(playerId) {
@@ -2537,6 +2544,14 @@ async function loadPlayerState(playerId) {
 
   if (state && typeof state.outputSelection === 'string' && state.outputSelection) {
     pendingOutputRestores[playerId] = state.outputSelection;
+  }
+
+  if (state) {
+    pendingPlaybackRestores[playerId] = {
+      isPlaying: state.isPlaying === true,
+      lastPlayedMediaPath:
+        typeof state.lastPlayedMediaPath === 'string' ? state.lastPlayedMediaPath : null,
+    };
   }
 
   // Keep localStorage in sync for downstream restore paths
@@ -2612,15 +2627,15 @@ async function loadPlayerState(playerId) {
     ipcRenderer.send('update-background-color', { playerId, color: state.backgroundColor });
   }
 
-  // Restore folder path and auto-start if folder has images AND auto-start is enabled
+  // Restore folder path, showing the item that was last on air. Playback resumes in
+  // resumePlayerPlayback once outputs are reconnected.
   if (state.folderPath) {
-    await loadFolderFromPath(playerId, playerCard, state.folderPath);
-
-    // Auto-start player if folder was successfully loaded with images AND auto-start is enabled
-    if (state.autoStart && players[playerId].images && players[playerId].images.length > 0) {
-      console.log(`Auto-starting player ${playerId}`);
-      startPlayer(playerId, playerCard);
-    }
+    await loadFolderFromPath(
+      playerId,
+      playerCard,
+      state.folderPath,
+      pendingPlaybackRestores[playerId]?.lastPlayedMediaPath
+    );
   }
 
   schedulePlayerViewSync(playerId, playerCard);
@@ -2675,9 +2690,53 @@ async function loadAllPlayerStates() {
     await restorePlayerOutput(i);
   }
   console.log('All outputs restored');
+
+  // Resume after outputs are connected so the first item replaces the DeckLink test pattern.
+  for (let i = 1; i <= 4; i++) {
+    resumePlayerPlayback(i);
+  }
 }
 
-async function loadFolderFromPath(playerId, playerCard, folderPath) {
+// Puts each player back the way it was at quit: running players continue from the item that
+// was on air, stopped players put their last item back on the output.
+function resumePlayerPlayback(playerId) {
+  const playback = pendingPlaybackRestores[playerId];
+  delete pendingPlaybackRestores[playerId];
+
+  const playerCard = document.querySelector(`[data-player-id="${playerId}"]`);
+  const player = players[playerId];
+  if (!playerCard || !player || player.images.length === 0) return;
+
+  const autoStart = playerCard.querySelector('.auto-start-checkbox')?.checked || false;
+  if (playback?.isPlaying || autoStart) {
+    console.log(`Resuming player ${playerId}`);
+    startPlayer(playerId, playerCard);
+    return;
+  }
+
+  pushVisibleSlideToOutput(playerId, playerCard);
+}
+
+// Sends the slide in the preview to the player's output, if it was actually on air. Videos
+// pick up on the next item rather than restarting out of sync with the preview.
+function pushVisibleSlideToOutput(playerId, playerCard) {
+  const visibleMedia = playerCard.querySelector('.preview-media.visible');
+  const imagePath = visibleMedia?.dataset.mediaPath;
+  if (!imagePath || isVideoPath(imagePath) || imagePath !== players[playerId].lastPlayedMediaPath) {
+    return;
+  }
+
+  ipcRenderer.send('update-output-image', {
+    playerId,
+    imagePath,
+    mediaType: 'image',
+    transition: 'cut',
+    duration: 0,
+    scaleFill: playerCard.querySelector('.scale-fill-checkbox')?.checked || false,
+  });
+}
+
+async function loadFolderFromPath(playerId, playerCard, folderPath, resumeMediaPath = null) {
   try {
     // Use IPC to reload the folder (this will also start the watcher)
     const result = await ipcRenderer.invoke('reload-folder', { playerId, folderPath });
@@ -2687,10 +2746,13 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
       return;
     }
 
-    // Update player state
+    // Update player state, picking up at the resume item if it's still in the folder.
+    const resumeIndex = resumeMediaPath ? result.images.indexOf(resumeMediaPath) : -1;
+    const startIndex = Math.max(0, resumeIndex);
     players[playerId].images = result.images;
-    players[playerId].currentIndex = 0;
+    players[playerId].currentIndex = startIndex;
     players[playerId].folderPath = folderPath;
+    players[playerId].lastPlayedMediaPath = resumeIndex >= 0 ? resumeMediaPath : null;
 
     // Update UI
     const folderPathEl = playerCard.querySelector('.folder-path');
@@ -2701,10 +2763,10 @@ async function loadFolderFromPath(playerId, playerCard, folderPath) {
 
     setPlayToggleState(playerCard, false, true);
 
-    // Show preview of the first media item.
+    // Show preview of the starting media item.
     const placeholder = playerCard.querySelector('.preview-placeholder');
     if (result.images.length > 0) {
-      showPreviewMedia(playerCard, 0, result.images[0]);
+      showPreviewMedia(playerCard, 0, result.images[startIndex]);
       if (placeholder) {
         placeholder.style.display = 'none';
       }

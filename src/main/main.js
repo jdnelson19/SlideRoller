@@ -243,6 +243,9 @@ function broadcastMultiviewGridMode(gridMode) {
 }
 
 function notifyPlayerOutputLost(playerId, reason = 'Output connection was lost.') {
+  // Outputs closing as part of quitting aren't a loss; stopping players here would save them
+  // as stopped and they wouldn't resume on the next launch.
+  if (quitConfirmed) return;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('player-output-lost', { playerId, reason });
   }
