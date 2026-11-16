@@ -1108,6 +1108,26 @@ body.always-on-top .menu-bar {
   white-space: nowrap;
 }
 
+.schedule-delete-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.schedule-delete-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e5484d;
+  font-size: clamp(10px, 0.8vw, 13px);
+  cursor: pointer;
+}
+
+.schedule-delete-link:hover {
+  color: #ff6b6f;
+  text-decoration: underline;
+}
+
 .schedule-actions {
   display: flex;
   justify-content: flex-end;

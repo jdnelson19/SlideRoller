@@ -822,7 +822,9 @@ function setupScheduleModal() {
   const modal = document.getElementById('schedule-modal');
   const pickFolderBtn = document.getElementById('schedule-pick-folder');
   const applyBtn = document.getElementById('schedule-apply');
-  const clearBtn = document.getElementById('schedule-clear');
+  const closeBtn = document.getElementById('schedule-close');
+  const cancelBtn = document.getElementById('schedule-cancel');
+  const deleteBtn = document.getElementById('schedule-delete');
   const timeControls = modal.querySelectorAll('.time-adjust');
 
   document.addEventListener('click', (event) => {
@@ -900,9 +902,14 @@ function setupScheduleModal() {
     }
   });
 
-  clearBtn.addEventListener('click', () => {
+  const closeModal = () => modal.classList.remove('active');
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+
+  deleteBtn.addEventListener('click', () => {
+    if (!confirm('Delete this schedule? Are you sure?')) return;
     clearScheduleSlot(scheduleState.activeSlot);
-    modal.classList.remove('active');
+    closeModal();
   });
 }
 
