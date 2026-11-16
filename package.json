@@ -1,6 +1,6 @@
 {
   "name": "slide-roller",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "description": "Professional image slideshow player with 4 independent players and hardware output support",
   "main": "src/main/main.js",
   "scripts": {
