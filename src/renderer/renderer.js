@@ -134,6 +134,13 @@ function setupDebugLogBridge() {
 document.addEventListener('DOMContentLoaded', async () => {
   setupDebugLogBridge();
   setupMainSegments();
+  ipcRenderer
+    .invoke('get-app-version')
+    .then((version) => {
+      const el = document.getElementById('app-version');
+      if (el && version) el.textContent = `v${version}`;
+    })
+    .catch(() => {});
   initializePlayers();
   setupAppScaling();
   await loadOutputOptions();

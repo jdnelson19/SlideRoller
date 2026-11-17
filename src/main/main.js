@@ -1229,6 +1229,8 @@ ipcMain.handle('select-folder', async (event, playerId) => {
   return null;
 });
 
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 // Pick a folder path without starting playback/watcher
 ipcMain.handle('pick-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

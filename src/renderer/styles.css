@@ -213,6 +213,13 @@ body.always-on-top .menu-bar {
   font-weight: 600;
 }
 
+.app-version {
+  margin-left: 6px;
+  font-size: clamp(10px, 0.75vw, 12px);
+  font-weight: 400;
+  color: #888;
+}
+
 .segment-tabs {
   display: inline-flex;
   gap: 8px;
