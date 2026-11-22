@@ -13,6 +13,14 @@
 #include <thread>
 #include <vector>
 
+#include <cerrno>
+#include <crt_externs.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <CoreFoundation/CoreFoundation.h>
 
 #include "DeckLinkAPI.h"
@@ -525,22 +533,64 @@ void OutputThread(std::shared_ptr<OutputContext> context)
   }
 }
 
-std::string ShellQuote(const std::string& value)
+// Start ffmpeg with an explicit argument list and no shell, so file names are
+// never interpreted as shell syntax. Returns the read end of ffmpeg's stdout.
+FILE* SpawnDecoder(const std::vector<std::string>& args, pid_t& pid)
 {
-  std::string quoted = "'";
-  for (const char character : value)
+  pid = -1;
+  int fds[2];
+  if (pipe(fds) != 0)
   {
-    if (character == '\'')
+    return nullptr;
+  }
+  fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+  fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
+  posix_spawn_file_actions_adddup2(&actions, fds[1], STDOUT_FILENO);
+
+  std::vector<char*> argv;
+  argv.reserve(args.size() + 1);
+  for (const std::string& arg : args)
+  {
+    argv.push_back(const_cast<char*>(arg.c_str()));
+  }
+  argv.push_back(nullptr);
+
+  const int spawnResult = posix_spawn(&pid, args[0].c_str(), &actions, nullptr, argv.data(), *_NSGetEnviron());
+  posix_spawn_file_actions_destroy(&actions);
+  close(fds[1]);
+
+  if (spawnResult != 0)
+  {
+    pid = -1;
+    close(fds[0]);
+    return nullptr;
+  }
+
+  FILE* stream = fdopen(fds[0], "r");
+  if (!stream)
+  {
+    close(fds[0]);
+    kill(pid, SIGTERM);
+    waitpid(pid, nullptr, 0);
+    pid = -1;
+  }
+  return stream;
+}
+
+void CloseDecoder(FILE* stream, pid_t pid)
+{
+  // Closing the pipe makes ffmpeg exit on its next write, as pclose did.
+  fclose(stream);
+  if (pid > 0)
+  {
+    while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR)
     {
-      quoted += "'\\\"'\\\"'";
-    }
-    else
-    {
-      quoted += character;
     }
   }
-  quoted += "'";
-  return quoted;
 }
 
 void VideoDecodeThread(std::shared_ptr<OutputContext> context, const std::string& ffmpegPath, const std::string& videoPath, bool scaleFill)
@@ -553,8 +603,12 @@ void VideoDecodeThread(std::shared_ptr<OutputContext> context, const std::string
   const std::string scaleFilter = scaleFill
     ? "scale=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":force_original_aspect_ratio=increase,crop=" + std::to_string(context->width) + ":" + std::to_string(context->height)
     : "scale=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":force_original_aspect_ratio=decrease,pad=" + std::to_string(context->width) + ":" + std::to_string(context->height) + ":(ow-iw)/2:(oh-ih)/2:black";
-  const std::string command = ShellQuote(ffmpegPath) + " -hide_banner -loglevel error -re -i " + ShellQuote(videoPath) + " -an -vf " + ShellQuote(scaleFilter + ",fps=fps=" + std::to_string(context->fps)) + " -pix_fmt uyvy422 -f rawvideo pipe:1";
-  FILE* decoder = popen(command.c_str(), "r");
+  const std::vector<std::string> args = {
+    ffmpegPath, "-hide_banner", "-loglevel", "error", "-re", "-i", videoPath, "-an",
+    "-vf", scaleFilter + ",fps=fps=" + std::to_string(context->fps),
+    "-pix_fmt", "uyvy422", "-f", "rawvideo", "pipe:1"};
+  pid_t decoderPid = -1;
+  FILE* decoder = SpawnDecoder(args, decoderPid);
   if (!decoder)
   {
     context->videoRunning.store(false);
@@ -602,7 +656,7 @@ void VideoDecodeThread(std::shared_ptr<OutputContext> context, const std::string
     decodedFrame.resize(frameSize);
   }
 
-  pclose(decoder);
+  CloseDecoder(decoder, decoderPid);
   context->videoRunning.store(false);
   context->videoCondition.notify_all();
 }
