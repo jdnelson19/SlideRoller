@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: blob:; media-src 'self' file: blob:; font-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Slide Roller Help</title>
     <style>
@@ -167,24 +171,6 @@
       </section>
     </div>
 
-    <script>
-      const tabControls = document.getElementById('tab-controls');
-      const tabShortcuts = document.getElementById('tab-shortcuts');
-      const panelControls = document.getElementById('panel-controls');
-      const panelShortcuts = document.getElementById('panel-shortcuts');
-
-      function setTab(mode) {
-        const shortcutsActive = mode === 'shortcuts';
-        tabControls.classList.toggle('active', !shortcutsActive);
-        tabShortcuts.classList.toggle('active', shortcutsActive);
-        tabControls.setAttribute('aria-selected', shortcutsActive ? 'false' : 'true');
-        tabShortcuts.setAttribute('aria-selected', shortcutsActive ? 'true' : 'false');
-        panelControls.classList.toggle('active', !shortcutsActive);
-        panelShortcuts.classList.toggle('active', shortcutsActive);
-      }
-
-      tabControls.addEventListener('click', () => setTab('controls'));
-      tabShortcuts.addEventListener('click', () => setTab('shortcuts'));
-    </script>
+    <script src="help.js"></script>
   </body>
 </html>

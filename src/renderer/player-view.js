@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const ipcRenderer = window.slideRoller.ipc;
 
 function applyGridMode(gridMode) {
   document.body.classList.toggle('grid-2x1', gridMode === '2x1');

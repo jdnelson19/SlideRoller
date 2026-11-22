@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const ipcRenderer = window.slideRoller.ipc;
 
 let currentImageIndex = 0;
 let isFirstImage = true;

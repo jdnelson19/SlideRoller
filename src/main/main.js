@@ -7,6 +7,7 @@ const {
   Menu,
   shell,
   powerMonitor,
+  session,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -110,6 +111,37 @@ const originalConsole = {
   };
 });
 
+// Every window runs sandboxed with no Node.js access. Pages reach the main
+// process only through the allowlisted channels in preload.js.
+function secureWebPreferences() {
+  return {
+    preload: path.join(__dirname, 'preload.js'),
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true,
+    webviewTag: false,
+  };
+}
+
+const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'fullscreen']);
+
+app.on('web-contents-created', (event, contents) => {
+  // The app only ever shows its own bundled pages: no popups, no navigation away.
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.on('will-navigate', (navigationEvent) => navigationEvent.preventDefault());
+  contents.on('will-redirect', (navigationEvent) => navigationEvent.preventDefault());
+  contents.on('will-attach-webview', (attachEvent) => attachEvent.preventDefault());
+});
+
+app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(ALLOWED_PERMISSIONS.has(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) =>
+    ALLOWED_PERMISSIONS.has(permission)
+  );
+});
+
 function createDebugWindow() {
   if (debugWindow && !debugWindow.isDestroyed()) {
     debugWindow.focus();
@@ -120,10 +152,7 @@ function createDebugWindow() {
     width: 1000,
     height: 700,
     title: 'Slide Roller Debug Logs',
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    webPreferences: secureWebPreferences(),
   });
 
   debugWindow.loadFile('src/renderer/debug.html');
@@ -149,10 +178,7 @@ function createHelpWindow() {
     minWidth: 620,
     minHeight: 520,
     title: 'Slide Roller Help',
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    webPreferences: secureWebPreferences(),
   });
 
   helpWindow.loadFile('src/renderer/help.html');
@@ -195,10 +221,7 @@ function createMultiviewWindow(displayId) {
     height: targetDisplay.bounds.height,
     fullscreen: true,
     frame: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    webPreferences: secureWebPreferences(),
     backgroundColor: '#000000',
   });
 
@@ -430,7 +453,8 @@ function scheduleDeckLinkRestoreRetry(attemptIndex = 0) {
 
   setTimeout(async () => {
     try {
-      const { unresolvedPlayerIds, restoredPlayerIds } = await restoreDeckLinkOutputsFromSavedState();
+      const { unresolvedPlayerIds, restoredPlayerIds } =
+        await restoreDeckLinkOutputsFromSavedState();
 
       if (restoredPlayerIds.length > 0 && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('decklink-outputs-restored', {
@@ -770,11 +794,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true,
-    },
+    webPreferences: secureWebPreferences(),
     title: 'Slide Roller',
     // The window close button is disabled so the app can't be shut down by accident;
     // quitting goes through the confirmed Quit (or a force quit).
@@ -1528,10 +1548,7 @@ ipcMain.handle(
       height: targetDisplay.bounds.height,
       fullscreen: true,
       frame: false,
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-      },
+      webPreferences: secureWebPreferences(),
       backgroundColor: '#000000',
     });
 

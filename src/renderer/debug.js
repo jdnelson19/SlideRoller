@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const ipcRenderer = window.slideRoller.ipc;
 
 const logOutput = document.getElementById('log-output');
 const clearBtn = document.getElementById('clear-btn');
