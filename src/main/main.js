@@ -11,6 +11,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { fileURLToPath } = require('url');
 const chokidar = require('chokidar');
 const Store = require('electron-store');
 const sharp = require('sharp');
@@ -121,6 +122,42 @@ function secureWebPreferences() {
     sandbox: true,
     webviewTag: false,
   };
+}
+
+// IPC is accepted only from the app's own bundled pages in src/renderer.
+const RENDERER_DIR = path.join(__dirname, '..', 'renderer');
+
+function isTrustedSender(event) {
+  const url = event.senderFrame && event.senderFrame.url;
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'file:') return false;
+    const relative = path.relative(RENDERER_DIR, fileURLToPath(parsed));
+    return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+  } catch (error) {
+    return false;
+  }
+}
+
+function handleTrusted(channel, handler) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      console.warn(`Rejected IPC "${channel}" from untrusted sender`);
+      throw new Error('Untrusted IPC sender');
+    }
+    return handler(event, ...args);
+  });
+}
+
+function onTrusted(channel, listener) {
+  ipcMain.on(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      console.warn(`Rejected IPC "${channel}" from untrusted sender`);
+      return;
+    }
+    listener(event, ...args);
+  });
 }
 
 const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'fullscreen']);
@@ -1231,7 +1268,7 @@ app.on('before-quit', (event) => {
 // IPC Handlers
 
 // Select folder for a player
-ipcMain.handle('select-folder', async (event, playerId) => {
+handleTrusted('select-folder', async (event, playerId) => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
   });
@@ -1249,10 +1286,10 @@ ipcMain.handle('select-folder', async (event, playerId) => {
   return null;
 });
 
-ipcMain.handle('get-app-version', () => app.getVersion());
+handleTrusted('get-app-version', () => app.getVersion());
 
 // Pick a folder path without starting playback/watcher
-ipcMain.handle('pick-folder', async () => {
+handleTrusted('pick-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
   });
@@ -1265,31 +1302,31 @@ ipcMain.handle('pick-folder', async () => {
 });
 
 // Schedule persistence (per player)
-ipcMain.handle('get-player-schedules', async (event, playerId) => {
+handleTrusted('get-player-schedules', async (event, playerId) => {
   return scheduleStore.get(`player${playerId}Schedules`, null);
 });
 
-ipcMain.handle('set-player-schedules', async (event, { playerId, schedules }) => {
+handleTrusted('set-player-schedules', async (event, { playerId, schedules }) => {
   scheduleStore.set(`player${playerId}Schedules`, schedules);
   return true;
 });
 
 // Player state persistence
-ipcMain.handle('get-player-state', async (event, playerId) => {
+handleTrusted('get-player-state', async (event, playerId) => {
   return playerStateStore.get(`player${playerId}State`, null);
 });
 
-ipcMain.handle('set-player-state', async (event, { playerId, state }) => {
+handleTrusted('set-player-state', async (event, { playerId, state }) => {
   playerStateStore.set(`player${playerId}State`, state);
   return true;
 });
 
-ipcMain.handle('open-debug-window', async () => {
+handleTrusted('open-debug-window', async () => {
   createDebugWindow();
   return true;
 });
 
-ipcMain.handle('set-multiview-output', async (event, { outputSelection, gridMode, displayId }) => {
+handleTrusted('set-multiview-output', async (event, { outputSelection, gridMode, displayId }) => {
   const nextGridMode = gridMode === '2x1' ? '2x1' : '2x2';
   broadcastMultiviewGridMode(nextGridMode);
 
@@ -1373,7 +1410,7 @@ ipcMain.handle('set-multiview-output', async (event, { outputSelection, gridMode
   return { success: false, error: 'Unsupported multiview output selection.' };
 });
 
-ipcMain.handle('clear-multiview-output', async () => {
+handleTrusted('clear-multiview-output', async () => {
   if (multiviewOutput && multiviewOutput.type === 'decklink') {
     const previousIndex = multiviewOutput.deviceIndex;
     multiviewOutput = null;
@@ -1386,18 +1423,18 @@ ipcMain.handle('clear-multiview-output', async () => {
   return { success: true };
 });
 
-ipcMain.on('multiview-update', (event, { playerId, payload }) => {
+onTrusted('multiview-update', (event, { playerId, payload }) => {
   if (!Number.isInteger(playerId) || playerId < 1 || playerId > 4) return;
   broadcastMultiviewPlayerUpdate(playerId, payload || null);
   queueMultiviewDeckLinkFrame();
 });
 
-ipcMain.on('multiview-grid-mode', (event, { gridMode }) => {
+onTrusted('multiview-grid-mode', (event, { gridMode }) => {
   broadcastMultiviewGridMode(gridMode === '2x1' ? '2x1' : '2x2');
   queueMultiviewDeckLinkFrame();
 });
 
-ipcMain.on('set-layout-min-size', (event, { mode }) => {
+onTrusted('set-layout-min-size', (event, { mode }) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const MIN_SIZES = {
     four: [1100, 680],
@@ -1411,7 +1448,7 @@ ipcMain.on('set-layout-min-size', (event, { mode }) => {
   }
 });
 
-ipcMain.on('debug-log', (event, payload) => {
+onTrusted('debug-log', (event, payload) => {
   if (!payload || typeof payload !== 'object') return;
   const level = payload.level || 'log';
   const source = payload.source || 'renderer';
@@ -1420,7 +1457,7 @@ ipcMain.on('debug-log', (event, payload) => {
 });
 
 // Ensure first-run state is clean (no folders/schedules/backgrounds persisted)
-ipcMain.handle('ensure-fresh-first-run', async () => {
+handleTrusted('ensure-fresh-first-run', async () => {
   const hasInitialized = appStateStore.get('hasInitialized', false);
   if (!hasInitialized) {
     scheduleStore.clear();
@@ -1432,7 +1469,7 @@ ipcMain.handle('ensure-fresh-first-run', async () => {
 });
 
 // Reload folder from saved path (used when restoring state)
-ipcMain.handle('reload-folder', async (event, { playerId, folderPath }) => {
+handleTrusted('reload-folder', async (event, { playerId, folderPath }) => {
   const images = await getImagesFromFolder(folderPath);
 
   if (images && images.length > 0) {
@@ -1445,7 +1482,7 @@ ipcMain.handle('reload-folder', async (event, { playerId, folderPath }) => {
 });
 
 // Get list of available displays
-ipcMain.handle('get-displays', async () => {
+handleTrusted('get-displays', async () => {
   const displays = screen.getAllDisplays();
   return displays.map((display) => ({
     id: display.id,
@@ -1457,11 +1494,11 @@ ipcMain.handle('get-displays', async () => {
 });
 
 // DeckLink device enumeration
-ipcMain.handle('decklink-list-devices', async () => {
+handleTrusted('decklink-list-devices', async () => {
   return decklink.listDevices();
 });
 
-ipcMain.handle('decklink-set-output', async (event, { playerId, deviceIndex }) => {
+handleTrusted('decklink-set-output', async (event, { playerId, deviceIndex }) => {
   const result = decklink.listDevices();
   if (!result.ok || !Array.isArray(result.devices)) {
     return { success: false, error: result.error || 'DeckLink devices unavailable' };
@@ -1499,7 +1536,7 @@ ipcMain.handle('decklink-set-output', async (event, { playerId, deviceIndex }) =
   return { success: true, device: decklinkOutputs[playerId] };
 });
 
-ipcMain.handle('decklink-clear-output', async (event, { playerId }) => {
+handleTrusted('decklink-clear-output', async (event, { playerId }) => {
   const previousOutput = decklinkOutputs[playerId];
   delete decklinkOutputs[playerId];
   if (previousOutput) {
@@ -1508,7 +1545,7 @@ ipcMain.handle('decklink-clear-output', async (event, { playerId }) => {
   return { success: true };
 });
 
-ipcMain.handle('decklink-set-video-mode', async (event, { videoMode }) => {
+handleTrusted('decklink-set-video-mode', async (event, { videoMode }) => {
   decklinkSettings.videoMode = videoMode || null;
   const activeDevices = getActiveDeckLinkDeviceIndices();
   for (const deviceIndex of activeDevices) {
@@ -1523,7 +1560,7 @@ ipcMain.handle('decklink-set-video-mode', async (event, { videoMode }) => {
 });
 
 // Create output window for a player
-ipcMain.handle(
+handleTrusted(
   'create-output-window',
   async (event, { playerId, displayId, outputType, streamName }) => {
     // Close existing output window for this player
@@ -1579,7 +1616,7 @@ ipcMain.handle(
 );
 
 // Close output window
-ipcMain.handle('close-output-window', async (event, playerId) => {
+handleTrusted('close-output-window', async (event, playerId) => {
   // Close monitor output window if exists
   if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
     suppressOutputLostForPlayer[playerId] = true;
@@ -1591,7 +1628,7 @@ ipcMain.handle('close-output-window', async (event, playerId) => {
 });
 
 // Send image update to output window
-ipcMain.on(
+onTrusted(
   'update-output-image',
   (event, { playerId, imagePath, mediaType, transition, duration, scaleFill }) => {
     // Update monitor output window if exists
@@ -1617,11 +1654,11 @@ ipcMain.on(
   }
 );
 
-ipcMain.on('stop-decklink-video', (event, { playerId }) => {
+onTrusted('stop-decklink-video', (event, { playerId }) => {
   stopDeckLinkVideo(playerId);
 });
 
-ipcMain.on('output-video-ended', (event, { playerId, mediaPath }) => {
+onTrusted('output-video-ended', (event, { playerId, mediaPath }) => {
   const outputWindow = outputWindows[playerId];
   if (!outputWindow || outputWindow.isDestroyed() || outputWindow.webContents !== event.sender) {
     return;
@@ -1633,7 +1670,7 @@ ipcMain.on('output-video-ended', (event, { playerId, mediaPath }) => {
 });
 
 // Send background color to output window
-ipcMain.on('update-background-color', (event, { playerId, color }) => {
+onTrusted('update-background-color', (event, { playerId, color }) => {
   // Update monitor output window if exists
   if (outputWindows[playerId] && !outputWindows[playerId].isDestroyed()) {
     outputWindows[playerId].webContents.send('update-background-color', { color });

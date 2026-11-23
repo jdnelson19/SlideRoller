@@ -1,26 +1,20 @@
-## Slide Roller Project
+## Slide Roller
 
-This is an Electron-based macOS application for managing 4 simultaneous image slideshow players with professional output capabilities.
+Electron app for macOS that runs 4 independent image/video playlist players, each routed to a fullscreen monitor window or a Blackmagic DeckLink output. See README.md for features and setup.
 
-### Project Architecture
-- Electron main process handles window management and hardware access
-- React-based renderer for UI
-- Each player independently manages its own image sequence
-- Support for hardware outputs (extended monitors, Blackmagic Decklink, NDI)
+### Layout
+- `src/main/main.js`: main process. Windows, menus, folder watching (chokidar), saved state (electron-store), image decoding (sharp), DeckLink routing.
+- `src/main/preload.js`: the only bridge between pages and the main process. Exposes `window.slideRoller.ipc` with `invoke`, `send` and `on`, limited to allowlisted channels.
+- `src/main/decklink.js`, `decklink-worker.js`: load the native add-on; device listing runs in a child process.
+- `src/native/decklink-addon/decklink_addon.cc`: N-API add-on for DeckLink output. Video is decoded by ffmpeg (ffmpeg-static), started with `posix_spawn` and an argument list.
+- `src/renderer/`: plain HTML/CSS/JS pages (no framework): `index.html` (control UI), `output.html`, `player-view.html` (multiview), `help.html`, `debug.html`.
 
-### Key Features
-- 4 independent media players
-- Folder-based image playback
-- Transition controls (cut/crossfade with 0.5-5s duration)
-- Multiple output options (monitors, Blackmagic devices, NDI streams)
-- No gaps between images during playback
+### Security rules
+- Every window uses `secureWebPreferences()`: sandboxed, context isolation on, no Node.js. Keep it that way.
+- A new IPC channel must be added to the matching allowlist in `preload.js`, and registered in the main process with `handleTrusted` / `onTrusted` (never `ipcMain` directly), which reject messages from anything but the bundled pages.
+- Pages have a strict Content-Security-Policy: no inline scripts, no remote content. Put scripts in their own `.js` files.
+- Never pass file names or other user data through a shell. Spawn processes with an argument list.
+- Set text with `textContent`, not `innerHTML`, when it includes file names or imported data.
 
-### Development Notes
-- Use Electron IPC for communication between main and renderer processes
-- Hardware video output requires native Node modules
-- NDI integration requires grandiose or similar NDI SDK bindings
-- Transitions implemented with canvas/CSS animations
-
-### Status
-- ✅ Workspace created
-- ⏳ Setting up project structure
+### Releases
+Bump the version, commit "Release vX: ..." on main, tag `vX`, push main and the tag. `.github/workflows/release.yml` builds, signs and notarizes on macOS and publishes the GitHub release.

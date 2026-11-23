@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- allow-jit and allow-unsigned-executable-memory: V8 JIT under the hardened runtime.
+       disable-library-validation: the DeckLink add-on loads Blackmagic's
+       /Library/Frameworks/DeckLinkAPI.framework, which is signed by Blackmagic,
+       not our team, so library validation would block DeckLink output. -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>

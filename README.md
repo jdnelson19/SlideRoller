@@ -27,8 +27,8 @@ Slide Roller is a macOS Electron app for running up to 4 simultaneous image and 
 
 ## Requirements
 
-- macOS
-- Node.js 18+
+- macOS 12 Monterey or later
+- Node.js 22.12+
 - npm
 
 ## Setup
